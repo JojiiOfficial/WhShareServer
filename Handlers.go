@@ -178,7 +178,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	if len(request.SourceID) == 0 {
 		sources, err := getSourcesForUser(db, user.Pkid)
 		if err != nil {
-			sendError("Invalid token", w, InvalidTokenError, 403)
+			sendError("Err", w, ServerError, 500)
 			return
 		}
 		response = listSourcesResponse{
@@ -186,7 +186,23 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 			Sources: sources,
 		}
 	} else {
-
+		source, err := getSourceFromSourceID(db, request.SourceID)
+		if err != nil {
+			sendError("Err", w, ServerError, 500)
+			return
+		}
+		if user.Pkid != source.CreatorID {
+			source.CreatorID = 0
+			source.Secret = ""
+			if source.IsPrivate {
+				source.Description = "This is a private source"
+				source.Name = "Private"
+			}
+		}
+		response = listSourcesResponse{
+			Status:  ResponseSuccessStr,
+			Sources: []Source{*source},
+		}
 	}
 
 	handleError(sendSuccess(w, response), w, ServerError, 500)
