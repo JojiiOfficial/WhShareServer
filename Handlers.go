@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+//-> /source/add
+func createSource(w http.ResponseWriter, r *http.Request) {
+	handleError(sendSuccess(w, "ok"), w, ServerError, 500)
+}
+
 func login(w http.ResponseWriter, r *http.Request) {
 	handleError(sendSuccess(w, "ok"), w, ServerError, 500)
 }

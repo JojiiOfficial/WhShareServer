@@ -15,10 +15,20 @@ type User struct {
 //Source a webhook source
 type Source struct {
 	PkID         uint32 `db:"pk_id" orm:"pk,ai"`
-	CreatorID    uint32 `db:"creator"`
-	Creator      User   `db:"-" orm:"-"`
 	Name         string `db:"name"`
 	Secret       string `db:"secret"`
+	CreatorID    uint32 `db:"creator"`
 	CreationTime string `db:"creationTime"`
 	IsPrivate    bool   `db:"private"`
+	Creator      User   `db:"-" orm:"-"`
+}
+
+//LoginSession a login session
+type LoginSession struct {
+	PkID    uint32 `db:"pk_id" orm:"pk,ai"`
+	UserID  uint32 `db:"userID"`
+	Token   string `db:"sessionToken"`
+	Created string `db:"created"`
+	IsValid bool   `db:"isValid"`
+	User    User   `db:"-" orm:"-"`
 }
