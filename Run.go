@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/mkideal/cli"
 	"github.com/thecodeteam/goodbye"
 )
@@ -15,97 +16,46 @@ type runT struct {
 	cli.Helper
 }
 
-var runCMD = &cli.Command{
-	Name:    "run",
-	Aliases: []string{},
-	Desc:    "Run the server",
-	Argv:    func() interface{} { return new(runT) },
-	Fn: func(ct *cli.Context) error {
-		//argv := ct.Argv().(*runT)
+func runCmd(config *ConfigStruct, db *dbhelper.DBhelper, debug bool) {
+	ctx := initExitCallback(db)
+	defer goodbye.Exit(ctx, -1)
 
-		ctx := initExitCallback()
-		defer goodbye.Exit(ctx, -1)
-		config = initConfig(configFile)
-		showTimeInLog = config.ShowTimeInLog
-		initDB(config)
+	router := NewRouter()
 
-		isConnected := isConnectedToDB() == nil
-		if !isConnected {
-			LogError("Couldn't connect to DB!")
-			return nil
-		}
-
-		router := NewRouter()
-
-		useTLS := checkUseTLS(config)
-		if useTLS {
-			go (func() {
-				if config.TLSPort < 2 {
-					LogError("TLS port must be bigger than 1")
-					os.Exit(1)
-				}
-				if config.TLSPort == config.HTTPPort {
-					LogCritical("HTTP port can't be the same as TLS port!")
-					os.Exit(1)
-				}
-				tlsprt := strconv.Itoa(config.TLSPort)
-				LogInfo("Server started TLS on port (" + tlsprt + ")")
-				log.Fatal(http.ListenAndServeTLS(":"+tlsprt, config.CertFile, config.KeyFile, router))
-			})()
-		}
-
-		if useTLS && config.HTTPPort < 2 {
-			for {
-
+	if config.TLS.Enabled {
+		go (func() {
+			address := config.TLS.ListenAddress + strconv.Itoa(config.TLS.Port)
+			if debug {
+				log.Printf("Server started TLS on port (%s)\n", address)
 			}
-		}
+			log.Fatal(http.ListenAndServeTLS(address, config.TLS.CertFile, config.TLS.KeyFile, router))
+		})()
+	}
 
-		if config.HTTPPort < 2 {
-			LogError("HTTP port must be bigger than 1")
-			return nil
-		}
-		httpprt := strconv.Itoa(config.HTTPPort)
-		LogInfo("Server started HTTP on port (" + httpprt + ")")
-		log.Fatal(http.ListenAndServe(":"+httpprt, router))
+	if config.TLS.Enabled && !config.HTTP.Enabled {
+		for {
 
-		return nil
-	},
+		}
+	}
+
+	if config.HTTP.Enabled {
+		address := config.HTTP.ListenAddress + strconv.Itoa(config.HTTP.Port)
+		if debug {
+			log.Printf("Server started HTTP on port (%s)\n", address)
+		}
+		log.Fatal(http.ListenAndServe(address, router))
+	}
+
 }
 
-func initExitCallback() context.Context {
+func initExitCallback(db *dbhelper.DBhelper) context.Context {
 	ctx := context.Background()
 	goodbye.Notify(ctx)
 	goodbye.Register(func(ctx context.Context, sig os.Signal) {
-		if db != nil {
-			db.Close()
+		if db.DB != nil {
+			db.DB.Close()
 			LogInfo("DB closed")
 		}
 	})
 	return ctx
-}
-
-func initConfig(file string) Config {
-	return readConfig(file)
-}
-
-func checkUseTLS(config Config) (useTLS bool) {
-	if len(config.CertFile) > 0 {
-		_, err := os.Stat(config.CertFile)
-		if err != nil {
-			LogError("Certfile not found. HTTP only!")
-			return false
-		}
-		useTLS = true
-	}
-
-	if len(config.KeyFile) > 0 {
-		_, err := os.Stat(config.KeyFile)
-		if err != nil {
-			LogError("Keyfile not found. HTTP only!")
-			return false
-		}
-		useTLS = true
-	}
-
-	return
 }
