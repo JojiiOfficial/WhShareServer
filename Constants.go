@@ -6,3 +6,8 @@ const (
 	//DataDir the dir where the config and data is
 	DataDir = "./data/"
 )
+
+const (
+	//ResponseErrorStr an error from a response
+	ResponseErrorStr = "error"
+)

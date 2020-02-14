@@ -43,7 +43,7 @@ var routes = Routes{
 	Route{
 		"createSource",
 		"POST",
-		"/source/add",
+		"/source/create",
 		createSource,
 	},
 }

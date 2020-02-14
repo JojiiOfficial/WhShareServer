@@ -18,7 +18,41 @@ var (
 
 //-> /source/add
 func createSource(w http.ResponseWriter, r *http.Request) {
-	handleError(sendSuccess(w, "ok"), w, ServerError, 500)
+	var request sourceAddRequest
+	if !handleUserInput(w, r, &request) {
+		return
+	}
+	if isStructInvalid(request) || len(request.Token) != 64 {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return
+	}
+
+	user, err := getUserIDFromSession(db, request.Token)
+	if err != nil {
+		sendError("Invalid token", w, InvalidTokenError, 403)
+		return
+	}
+
+	source := &Source{
+		Creator:     *user,
+		IsPrivate:   request.Private,
+		Name:        request.Name,
+		Description: request.Description,
+	}
+
+	err = source.insert(db)
+	if err != nil {
+		fmt.Print(err.Error())
+		sendError("Internal error", w, ServerError, 500)
+		return
+	}
+
+	handleError(sendSuccess(w, sourceAddResponse{
+		Status:   "success",
+		Secret:   source.Secret,
+		SourceID: source.SourceID,
+	}), w, ServerError, 500)
+
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +61,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if !handleUserInput(w, r, &request) {
 		return
 	}
-	if isStructInvalid(request) {
+	if isStructInvalid(request) || len(request.Password) != 128 {
 		sendError("input missing", w, WrongInputFormatError, 422)
 		return
 	}
@@ -45,7 +79,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}), w, ServerError, 500)
 	} else {
 		handleError(sendSuccess(w, loginResponse{
-			Status: "Error",
+			Status: ResponseErrorStr,
 		}), w, ServerError, 500)
 	}
 }
@@ -117,14 +151,6 @@ func isEmptyValue(e reflect.Value) bool {
 		if e.String() == "" || strings.Trim(e.String(), " ") == "" {
 			return true
 		}
-	case reflect.Int:
-		{
-			return false
-		}
-	case reflect.Int64:
-		{
-			return false
-		}
 	case reflect.Array:
 		for j := e.Len() - 1; j >= 0; j-- {
 			isEmpty := isEmptyValue(e.Index(j))
@@ -134,31 +160,11 @@ func isEmptyValue(e reflect.Value) bool {
 		}
 	case reflect.Slice:
 		return isStructInvalid(e)
-	case reflect.Uintptr:
-		{
-			return false
-		}
-	case reflect.Ptr:
-		{
-			return false
-		}
-	case reflect.UnsafePointer:
-		{
-			return false
-		}
-	case reflect.Struct:
-		{
-			return false
-		}
-	case reflect.Uint64:
-		{
-			return false
-		}
-	case reflect.Uint:
-		{
-			return false
-		}
-	case reflect.Uint8:
+
+	case
+		reflect.Uintptr, reflect.Ptr, reflect.UnsafePointer,
+		reflect.Uint64, reflect.Uint, reflect.Uint8, reflect.Bool,
+		reflect.Struct, reflect.Int64, reflect.Int:
 		{
 			return false
 		}
