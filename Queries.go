@@ -9,9 +9,10 @@ import (
 
 //Tables
 const (
-	TableUser         = "User"
-	TableSources      = "Sources"
-	TableLoginSession = "LoginSessions"
+	TableUser          = "User"
+	TableSources       = "Sources"
+	TableLoginSession  = "LoginSessions"
+	TableSubscriptions = "Subscriptions"
 )
 
 func getInitSQL() dbhelper.QueryChain {
@@ -48,6 +49,12 @@ func getInitSQL() dbhelper.QueryChain {
 				//Create foreign key
 				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `%s` (`pk_id`);",
 				FParams: []string{TableLoginSession, TableLoginSession, TableUser},
+			},
+
+			//Subscriptions
+			dbhelper.InitSQL{
+				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `subscriptionID` text NOT NULL, `subscriber` int(10) unsigned NOT NULL, `source` int(10) unsigned NOT NULL, `callbackURL` text, `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `lastTrigger` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', PRIMARY KEY (`pk_id`), KEY `subscriber` (`subscriber`), KEY `source` (`source`), CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`subscriber`) REFERENCES `%s` (`pk_id`), CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`source`) REFERENCES `%s` (`pk_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+				FParams: []string{TableSubscriptions, TableSubscriptions, TableUser, TableSubscriptions, TableSources},
 			},
 		),
 	}
