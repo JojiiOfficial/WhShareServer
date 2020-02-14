@@ -16,11 +16,13 @@ type runT struct {
 	cli.Helper
 }
 
-func runCmd(config *ConfigStruct, db *dbhelper.DBhelper, debug bool) {
-	ctx := initExitCallback(db)
+func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
+	ctx := initExitCallback(dab)
 	defer goodbye.Exit(ctx, -1)
 
 	router := NewRouter()
+
+	db = dab
 
 	if config.TLS.Enabled {
 		go (func() {

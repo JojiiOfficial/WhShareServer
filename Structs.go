@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 // ------------- Database structs ----------------
 
@@ -31,4 +33,23 @@ type LoginSession struct {
 	Created string `db:"created"`
 	IsValid bool   `db:"isValid"`
 	User    User   `db:"-" orm:"-"`
+}
+
+// ------------- REST structs ----------------
+
+//-----> Requests
+
+type sourceAddRequest struct {
+}
+
+type loginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"pass"`
+}
+
+//-----> Responses
+
+type loginResponse struct {
+	Status string `json:"status"`
+	Token  string `json:"token"`
 }

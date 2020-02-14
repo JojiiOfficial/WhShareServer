@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log"
+
+	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
@@ -48,4 +51,40 @@ func getInitSQL() dbhelper.QueryChain {
 			},
 		),
 	}
+}
+
+// -------------------- Database QUERIES ----
+
+func loginQuery(db *dbhelper.DBhelper, username, password string) (string, bool, error) {
+	var pkid uint32
+	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1", []string{TableUser}, username, password)
+	if err != nil || pkid < 1 {
+		return "", false, nil
+	}
+
+	session := LoginSession{
+		UserID: pkid,
+		Token:  gaw.RandString(64),
+	}
+
+	err = session.insert(db)
+	if err != nil {
+		log.Println(err.Error())
+		return "", false, err
+	}
+
+	return session.Token, true, nil
+}
+
+func (session *LoginSession) insert(db *dbhelper.DBhelper) error {
+	rs, err := db.Execf("INSERT INTO %s (sessionToken, userID) VALUES(?,?)", []string{TableLoginSession}, session.Token, session.UserID)
+	if err != nil {
+		return err
+	}
+	id, err := rs.LastInsertId()
+	if err != nil {
+		return err
+	}
+	session.PkID = uint32(id)
+	return nil
 }

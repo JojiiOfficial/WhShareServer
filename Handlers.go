@@ -8,6 +8,12 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+
+	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+)
+
+var (
+	db *dbhelper.DBhelper
 )
 
 //-> /source/add
@@ -16,7 +22,32 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	handleError(sendSuccess(w, "ok"), w, ServerError, 500)
+	var request loginRequest
+
+	if !handleUserInput(w, r, &request) {
+		return
+	}
+	if isStructInvalid(request) {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return
+	}
+
+	token, success, err := loginQuery(db, request.Username, request.Password)
+	if err != nil {
+		sendError("Internal error", w, ServerError, 500)
+		return
+	}
+
+	if success {
+		handleError(sendSuccess(w, loginResponse{
+			Status: "success",
+			Token:  token,
+		}), w, ServerError, 500)
+	} else {
+		handleError(sendSuccess(w, loginResponse{
+			Status: "Error",
+		}), w, ServerError, 500)
+	}
 }
 
 func handleUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
