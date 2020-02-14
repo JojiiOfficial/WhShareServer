@@ -16,6 +16,24 @@ var (
 	db *dbhelper.DBhelper
 )
 
+func unsubscribe(w http.ResponseWriter, r *http.Request) {
+	var request unsubscribeRequest
+	if !handleUserInput(w, r, &request) {
+		return
+	}
+	if len(request.SubscriptionID) != 32 {
+		sendError("input missing wrong lengh", w, WrongInputFormatError, 422)
+		return
+	}
+	err := removeSubscription(db, request.SubscriptionID)
+	if err != nil {
+		sendError("sever error", w, ServerError, 500)
+		return
+	}
+	handleError(sendSuccess(w, ResponseSuccess), w, ServerError, 500)
+	return
+}
+
 func subscribe(w http.ResponseWriter, r *http.Request) {
 	var request subscriptionRequest
 	if !handleUserInput(w, r, &request) {

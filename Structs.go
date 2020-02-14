@@ -66,6 +66,10 @@ type subscriptionRequest struct {
 	CallbackURL string `json:"cburl"`
 }
 
+type unsubscribeRequest struct {
+	SubscriptionID string `json:"sid"`
+}
+
 //-----> Responses
 
 type loginResponse struct {

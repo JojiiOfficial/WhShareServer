@@ -52,4 +52,10 @@ var routes = Routes{
 		"/sub/add",
 		subscribe,
 	},
+	Route{
+		"unsubscribe",
+		"POST",
+		"/sub/remove",
+		unsubscribe,
+	},
 }

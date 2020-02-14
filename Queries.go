@@ -111,6 +111,11 @@ func getSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, err
 	return &source, nil
 }
 
+func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
+	_, err := db.Execf("DELETE FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+	return err
+}
+
 // Inserts
 
 func (sub *Subscription) insert(db *dbhelper.DBhelper) error {
