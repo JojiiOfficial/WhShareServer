@@ -16,6 +16,88 @@ var (
 	db *dbhelper.DBhelper
 )
 
+func subscribe(w http.ResponseWriter, r *http.Request) {
+	var request subscriptionRequest
+	if !handleUserInput(w, r, &request) {
+		return
+	}
+	token := request.Token
+	if token == "-" {
+		token = ""
+	}
+
+	if isStructInvalid(request) || (len(request.Token) > 0 && len(request.Token) != 64) {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return
+	}
+
+	//Determine the user
+	userID := uint32(1)
+	var user *User
+	var err error
+	if len(token) > 0 {
+		user, err = getUserIDFromSession(db, token)
+		if err != nil {
+			fmt.Println(err.Error())
+			userID = 1
+		} else {
+			userID = user.Pkid
+		}
+	}
+
+	//The source to get subbed
+	source, err := getSourceFromSourceID(db, request.SourceID)
+	if err != nil {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		fmt.Println(err.Error())
+		return
+	}
+
+	var response subscriptionResponse
+
+	if userID > 1 {
+		is, err := user.isSubscribedTo(db, source.PkID)
+		if err != nil {
+			sendError("input missing", w, ServerError, 500)
+			fmt.Println(err.Error())
+			return
+		}
+		if is {
+			response = subscriptionResponse{
+				Message: "You can only subscribe one time to a source",
+				Status:  "error",
+			}
+			handleError(sendSuccess(w, response), w, ServerError, 500)
+			return
+		}
+	}
+
+	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
+		sub := Subscription{
+			Source:      source.PkID,
+			CallbackURL: request.CallbackURL,
+			UserID:      userID,
+		}
+		err := sub.insert(db)
+		if err != nil {
+			fmt.Println(err.Error())
+			sendError("internal error", w, ServerError, 500)
+			return
+		}
+		response = subscriptionResponse{
+			Status:         ResponseSuccessStr,
+			SubscriptionID: sub.SubscriptionID,
+			Name:           source.Name,
+		}
+	} else {
+		response = subscriptionResponse{
+			Status:  ResponseErrorStr,
+			Message: "Not allowed",
+		}
+	}
+	handleError(sendSuccess(w, response), w, ServerError, 500)
+}
+
 //-> /source/add
 func createSource(w http.ResponseWriter, r *http.Request) {
 	var request sourceAddRequest
@@ -48,11 +130,10 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handleError(sendSuccess(w, sourceAddResponse{
-		Status:   "success",
+		Status:   ResponseSuccessStr,
 		Secret:   source.Secret,
 		SourceID: source.SourceID,
 	}), w, ServerError, 500)
-
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +155,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	if success {
 		handleError(sendSuccess(w, loginResponse{
-			Status: "success",
+			Status: ResponseSuccessStr,
 			Token:  token,
 		}), w, ServerError, 500)
 	} else {

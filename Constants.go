@@ -10,4 +10,6 @@ const (
 const (
 	//ResponseErrorStr an error from a response
 	ResponseErrorStr = "error"
+	//ResponseSuccessStr success response
+	ResponseSuccessStr = "success"
 )

@@ -46,4 +46,10 @@ var routes = Routes{
 		"/source/create",
 		createSource,
 	},
+	Route{
+		"subscribe",
+		"POST",
+		"/sub/add",
+		subscribe,
+	},
 }

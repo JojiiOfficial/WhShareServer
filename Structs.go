@@ -4,7 +4,7 @@ package main
 
 //User user in db
 type User struct {
-	Pkid      int    `db:"pk_id" orm:"pk,ai"`
+	Pkid      uint32 `db:"pk_id" orm:"pk,ai"`
 	Username  string `db:"username"`
 	CreatedAt string `db:"createdAt"`
 	IsValid   bool   `db:"isValid"`
@@ -20,7 +20,7 @@ type Source struct {
 	CreatorID    uint32 `db:"creator"`
 	CreationTime string `db:"creationTime"`
 	IsPrivate    bool   `db:"private"`
-	Creator      User
+	Creator      User   `db:"-"`
 }
 
 //LoginSession a login session
@@ -48,6 +48,11 @@ type Subscription struct {
 
 //-----> Requests
 
+type loginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"pass"`
+}
+
 type sourceAddRequest struct {
 	Token       string `json:"token"`
 	Name        string `json:"name"`
@@ -55,9 +60,10 @@ type sourceAddRequest struct {
 	Private     bool   `json:"private"`
 }
 
-type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"pass"`
+type subscriptionRequest struct {
+	Token       string `json:"token"`
+	SourceID    string `json:"sid"`
+	CallbackURL string `json:"cburl"`
 }
 
 //-----> Responses
@@ -71,4 +77,11 @@ type sourceAddResponse struct {
 	Status   string `json:"status"`
 	Secret   string `json:"secret"`
 	SourceID string `json:"id"`
+}
+
+type subscriptionResponse struct {
+	Status         string `json:"status"`
+	Message        string `json:"message,omitempty"`
+	SubscriptionID string `json:"sid"`
+	Name           string `json:"name"`
 }

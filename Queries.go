@@ -93,6 +93,40 @@ func getUserIDFromSession(db *dbhelper.DBhelper, token string) (*User, error) {
 	return &user, nil
 }
 
+func (user *User) isSubscribedTo(db *dbhelper.DBhelper, sourceID uint32) (bool, error) {
+	var c int
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=? AND source=?", []string{TableSubscriptions}, user.Pkid, sourceID)
+	if err != nil {
+		return false, err
+	}
+	return c > 0, nil
+}
+
+func getSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, error) {
+	var source Source
+	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE sourceID=?", []string{TableSources}, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	return &source, nil
+}
+
+// Inserts
+
+func (sub *Subscription) insert(db *dbhelper.DBhelper) error {
+	sub.SubscriptionID = gaw.RandString(32)
+	rs, err := db.Execf("INSERT INTO %s (subscriptionID, subscriber, source, callbackURL) VALUES (?,?,?,?)", []string{TableSubscriptions}, sub.SubscriptionID, sub.UserID, sub.Source, sub.CallbackURL)
+	if err != nil {
+		return err
+	}
+	id, err := rs.LastInsertId()
+	if err != nil {
+		return err
+	}
+	sub.PkID = uint32(id)
+	return nil
+}
+
 func (session *LoginSession) insert(db *dbhelper.DBhelper) error {
 	rs, err := db.Execf("INSERT INTO %s (sessionToken, userID) VALUES(?,?)", []string{TableLoginSession}, session.Token, session.UserID)
 	if err != nil {
