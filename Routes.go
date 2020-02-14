@@ -47,6 +47,12 @@ var routes = Routes{
 		createSource,
 	},
 	Route{
+		"listSources",
+		"POST",
+		"/sources",
+		listSources,
+	},
+	Route{
 		"subscribe",
 		"POST",
 		"/sub/add",

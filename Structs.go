@@ -12,15 +12,15 @@ type User struct {
 
 //Source a webhook source
 type Source struct {
-	PkID         uint32 `db:"pk_id" orm:"pk,ai"`
-	Name         string `db:"name"`
-	SourceID     string `db:"sourceID"`
-	Description  string `db:"description"`
-	Secret       string `db:"secret"`
-	CreatorID    uint32 `db:"creator"`
-	CreationTime string `db:"creationTime"`
+	PkID         uint32 `db:"pk_id" orm:"pk,ai" json:"-"`
+	Name         string `db:"name" json:"name"`
+	SourceID     string `db:"sourceID" json:"sourceID"`
+	Description  string `db:"description" json:"description"`
+	Secret       string `db:"secret" json:"secret"`
+	CreatorID    uint32 `db:"creator" json:"-"`
+	CreationTime string `db:"creationTime" json:"crTime"`
 	IsPrivate    bool   `db:"private"`
-	Creator      User   `db:"-"`
+	Creator      User   `db:"-" json:"-"`
 }
 
 //LoginSession a login session
@@ -70,6 +70,15 @@ type unsubscribeRequest struct {
 	SubscriptionID string `json:"sid"`
 }
 
+type listSourcesRequest struct {
+	Token    string `json:"token"`
+	SourceID string `json:"sid,omitempty"`
+}
+
+type tokenOnlyRequest struct {
+	Token string `json:"token"`
+}
+
 //-----> Responses
 
 type loginResponse struct {
@@ -88,4 +97,9 @@ type subscriptionResponse struct {
 	Message        string `json:"message,omitempty"`
 	SubscriptionID string `json:"sid"`
 	Name           string `json:"name"`
+}
+
+type listSourcesResponse struct {
+	Status  string   `json:"status"`
+	Sources []Source `json:"sources,omitempty"`
 }

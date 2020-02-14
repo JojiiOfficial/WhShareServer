@@ -16,6 +16,7 @@ var (
 	db *dbhelper.DBhelper
 )
 
+//-> /sub/remove
 func unsubscribe(w http.ResponseWriter, r *http.Request) {
 	var request unsubscribeRequest
 	if !handleUserInput(w, r, &request) {
@@ -34,6 +35,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+//-> /sub/add
 func subscribe(w http.ResponseWriter, r *http.Request) {
 	var request subscriptionRequest
 	if !handleUserInput(w, r, &request) {
@@ -45,7 +47,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isStructInvalid(request) || (len(request.Token) > 0 && len(request.Token) != 64) {
-		sendError("input missing", w, WrongInputFormatError, 422)
+		sendError("input missing", w, InvalidTokenError, 422)
 		return
 	}
 
@@ -154,6 +156,43 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	}), w, ServerError, 500)
 }
 
+//-> /sources
+func listSources(w http.ResponseWriter, r *http.Request) {
+	var request listSourcesRequest
+
+	if !handleUserInput(w, r, &request) {
+		return
+	}
+
+	if len(request.Token) != 64 {
+		sendError("input missing wrong lengh", w, InvalidTokenError, 422)
+		return
+	}
+
+	user, err := getUserIDFromSession(db, request.Token)
+	if err != nil {
+		sendError("Invalid token", w, InvalidTokenError, 403)
+		return
+	}
+	var response listSourcesResponse
+	if len(request.SourceID) == 0 {
+		sources, err := getSourcesForUser(db, user.Pkid)
+		if err != nil {
+			sendError("Invalid token", w, InvalidTokenError, 403)
+			return
+		}
+		response = listSourcesResponse{
+			Status:  ResponseSuccessStr,
+			Sources: sources,
+		}
+	} else {
+
+	}
+
+	handleError(sendSuccess(w, response), w, ServerError, 500)
+}
+
+//-> /login
 func login(w http.ResponseWriter, r *http.Request) {
 	var request loginRequest
 
@@ -183,8 +222,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//rest functions
 func handleUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 10000))
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 100000))
 	if err != nil {
 		LogError("ReadError: " + err.Error())
 		return false

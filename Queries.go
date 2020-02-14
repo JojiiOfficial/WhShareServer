@@ -111,6 +111,15 @@ func getSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, err
 	return &source, nil
 }
 
+func getSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
+	var sources []Source
+	err := db.QueryRowsf(&sources, "SELECT * FROM %s WHERE creator=?", []string{TableSources}, userID)
+	if err != nil {
+		return nil, err
+	}
+	return sources, nil
+}
+
 func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
 	_, err := db.Execf("DELETE FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
 	return err
