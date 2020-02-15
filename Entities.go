@@ -87,7 +87,12 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
+	if resp.StatusCode == http.StatusTeapot {
+		err := removeSubscription(db, subscription.SubscriptionID)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	} else if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
 		addRetry(subscription.PkID, source.PkID, webhook.PkID, func(subsPK uint32) {
 			fmt.Printf("Unsubscribe %d because of failed retry attempts\n", subsPK)
 			err := removeSubscriptionByPK(db, subsPK)
