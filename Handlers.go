@@ -305,9 +305,11 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			b, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
 			if err != nil {
 				LogError("ReadError: " + err.Error())
+				c <- false
 				return
 			}
 			req.Body.Close()
+			c <- true
 
 			//get payload
 			payload = string(b)
@@ -317,19 +319,23 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Println(k, v)
 				headers += k + "=" + strings.Join(v, ";") + "\r\n"
 			}
-			webhook := Webhook{
+
+			webhook := &Webhook{
 				SourceID: source.PkID,
 				Headers:  headers,
 				Payload:  payload,
 			}
 			webhook.insert(db)
 
-			//TODO call clients
+			notifySubscriber(db, webhook, source)
 		})(r)
 
-		<-c
+		if <-c {
+			sendResponse(w, ResponseSuccess, "success", nil)
+		} else {
+			sendResponse(w, ResponseError, "error", nil, 500)
+		}
 
-		sendResponse(w, ResponseSuccess, "success", nil)
 	} else {
 		fmt.Println("invalid secret for source", sourceID)
 	}

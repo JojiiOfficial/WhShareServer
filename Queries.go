@@ -153,6 +153,12 @@ func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
 	return err
 }
 
+func getSubscriptionsFromSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
+	var subscriptions []Subscription
+	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
+	return subscriptions, err
+}
+
 // Inserts
 
 func (sub *Subscription) insert(db *dbhelper.DBhelper) error {
