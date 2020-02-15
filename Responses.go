@@ -1,6 +1,8 @@
 package main
 
 const (
+	//NotFoundError error from server
+	NotFoundError string = "Not found"
 	//ActionNotAllowed error from server
 	ActionNotAllowed string = "Action not allowed"
 	//ServerError error from server

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/mkideal/cli"
@@ -33,21 +34,20 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 			log.Fatal(http.ListenAndServeTLS(address, config.TLS.CertFile, config.TLS.KeyFile, router))
 		})()
 	}
-
-	if config.TLS.Enabled && !config.HTTP.Enabled {
-		for {
-
-		}
-	}
-
 	if config.HTTP.Enabled {
-		address := config.HTTP.ListenAddress + strconv.Itoa(config.HTTP.Port)
-		if debug {
-			log.Printf("Server started HTTP on port (%s)\n", address)
-		}
-		log.Fatal(http.ListenAndServe(address, router))
+		go (func() {
+			address := config.HTTP.ListenAddress + strconv.Itoa(config.HTTP.Port)
+			if debug {
+				log.Printf("Server started HTTP on port (%s)\n", address)
+			}
+			log.Fatal(http.ListenAndServe(address, router))
+		})()
 	}
 
+	startRetryLoop()
+	for {
+		time.Sleep(time.Hour)
+	}
 }
 
 func initExitCallback(db *dbhelper.DBhelper) context.Context {

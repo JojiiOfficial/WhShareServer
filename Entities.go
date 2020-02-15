@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
+	"net/http"
+	"strings"
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -34,19 +38,63 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 	c := make(chan int, 1)
 	c <- numWorkers
 
-	for {
-		if pos >= len(subscriptions) {
-			break
-		}
+	for pos < len(subscriptions) {
 		read := <-c
-		for i := 0; i < read; i++ {
-			go startNotfy(&c, pos, &subscriptions[pos], webhook, source)
+		for i := 0; i < read && pos < len(subscriptions); i++ {
+			fmt.Println("pos", pos)
+			go startNotfy(&c, subscriptions[pos], webhook, source)
 			pos++
 		}
 	}
 }
 
-func startNotfy(c *chan int, pos int, subscription *Subscription, webhook *Webhook, source *Source) {
-	<-time.After(5 * time.Millisecond)
+func startNotfy(c *chan int, subscription Subscription, webhook *Webhook, source *Source) {
+	rand.Seed(time.Now().UnixNano())
+	//Wait some milliseconds to circulate the traffic
+	<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
+
+	fmt.Printf("Notifying user %d\n", subscription.UserID)
+
+	doRequest(subscription, webhook, source)
+
 	*c <- 1
+}
+
+func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	req, _ := http.NewRequest("POST", subscription.CallbackURL, strings.NewReader(webhook.Payload))
+
+	headersrn := strings.Split(webhook.Headers, "\r\n")
+	for _, v := range headersrn {
+		if !strings.Contains(v, "=") {
+			continue
+		}
+		kp := strings.Split(v, "=")
+		key := kp[0]
+
+		req.Header.Set(key, kp[1])
+	}
+
+	//Add header for client
+	req.Header.Set(HeaderReceived, webhook.Received)
+	req.Header.Set(HeaderSource, source.SourceID)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
+		addRetry(subscription.PkID, source.PkID, webhook.PkID, func(subsPK uint32) {
+			fmt.Printf("Unsubscribe %d because of failed retry attempts\n", subsPK)
+			err := removeSubscriptionByPK(db, subsPK)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		})
+	} else {
+		removeRetry(subscription.PkID)
+		subscription.trigger(db)
+	}
 }

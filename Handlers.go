@@ -74,7 +74,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	//The source to get subbed
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
-		sendError("input missing", w, WrongInputFormatError, 422)
+		sendError("input missing", w, NotFoundError, 422)
 		fmt.Println(err.Error())
 		return
 	}
@@ -316,7 +316,6 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 			//Merge header
 			for k, v := range req.Header {
-				fmt.Println(k, v)
 				headers += k + "=" + strings.Join(v, ";") + "\r\n"
 			}
 
