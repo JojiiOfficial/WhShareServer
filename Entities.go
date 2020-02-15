@@ -101,7 +101,7 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 	}
 }
 
-func ping(u string) (bool, error) {
+func ping(u, sid string) (bool, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -110,11 +110,18 @@ func ping(u string) (bool, error) {
 		return false, err
 	}
 	ur.Path = path.Join(ur.Path, "ping")
-	res, err := client.Get(ur.String())
+	req, err := http.NewRequest("GET", ur.Path, strings.NewReader("b"))
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set(HeaderSource, sid)
+	res, err := client.Do(req)
 
 	if err != nil {
 		return false, err
 	}
+
 	if res.StatusCode == http.StatusOK {
 		return true, nil
 	}
