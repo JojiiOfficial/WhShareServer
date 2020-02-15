@@ -23,7 +23,7 @@ func deleteSource(db *dbhelper.DBhelper, sourceID uint32) error {
 }
 
 func notifySubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
-	subscriptions, err := getSubscriptionsFromSource(db, source.PkID)
+	subscriptions, err := getValidSubscriptionsFromSource(db, source.PkID)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -101,7 +101,22 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 	}
 }
 
-func ping(u, sid string) (bool, error) {
+func startValidation(cbURL, srcID, subsID string) {
+	<-time.After(10 * time.Second)
+	val, err := validateSubsrciption(cbURL, subsID, srcID)
+	if err != nil || !val {
+		removeSubscription(db, subsID)
+		return
+	}
+	err = subscriptionSetValidated(db, subsID)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println("Successfully validated")
+	}
+}
+
+func validateSubsrciption(u, subID, srcID string) (bool, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -114,8 +129,9 @@ func ping(u, sid string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	req.Header.Set(HeaderSource, srcID)
+	req.Header.Set(HeaderSubsID, subID)
 
-	req.Header.Set(HeaderSource, sid)
 	res, err := client.Do(req)
 
 	if err != nil {

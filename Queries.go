@@ -69,7 +69,7 @@ func getInitSQL() dbhelper.QueryChain {
 
 			//Subscriptions
 			dbhelper.InitSQL{
-				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `subscriptionID` text NOT NULL, `subscriber` int(10) unsigned NOT NULL, `source` int(10) unsigned NOT NULL, `callbackURL` text, `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `lastTrigger` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', PRIMARY KEY (`pk_id`), KEY `subscriber` (`subscriber`), KEY `source` (`source`), CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`subscriber`) REFERENCES `%s` (`pk_id`), CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`source`) REFERENCES `%s` (`pk_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `subscriptionID` text NOT NULL, `subscriber` int(10) unsigned NOT NULL, `source` int(10) unsigned NOT NULL, `callbackURL` text, `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `isValid` tinyint(1) NOT NULL DEFAULT '0', `lastTrigger` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', PRIMARY KEY (`pk_id`), KEY `subscriber` (`subscriber`), KEY `source` (`source`), CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`subscriber`) REFERENCES `%s` (`pk_id`), CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`source`) REFERENCES `%s` (`pk_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 				FParams: []string{TableSubscriptions, TableSubscriptions, TableUser, TableSubscriptions, TableSources},
 			},
 
@@ -156,9 +156,9 @@ func removeSubscriptionByPK(db *dbhelper.DBhelper, pk uint32) error {
 	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pk)
 	return err
 }
-func getSubscriptionsFromSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
+func getValidSubscriptionsFromSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
 	var subscriptions []Subscription
-	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
+	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=? AND isValid=1", []string{TableSubscriptions}, sourceID)
 	return subscriptions, err
 }
 
@@ -187,6 +187,11 @@ func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error)
 		return nil, err
 	}
 	return &webhook, nil
+}
+
+func subscriptionSetValidated(db *dbhelper.DBhelper, subscriptionID string) error {
+	_, err := db.Execf("UPDATE %s SET isValid=1 WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+	return err
 }
 
 func (sub *Subscription) trigger(db *dbhelper.DBhelper) {

@@ -26,7 +26,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(request.SubscriptionID) != 32 {
-		sendError("input missing wrong lengh", w, WrongInputFormatError, 422)
+		sendError("input missing wrong length", w, WrongInputFormatError, 422)
 		return
 	}
 	err := removeSubscription(db, request.SubscriptionID)
@@ -34,6 +34,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		handleServerError(w, err)
 		return
 	}
+	fmt.Println(request.SubscriptionID, "removed")
 	sendResponse(w, ResponseSuccess, "", nil)
 	return
 }
@@ -98,13 +99,6 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ack, err := ping(request.CallbackURL, source.SourceID)
-	if !ack || err != nil {
-		fmt.Println(err)
-		sendResponse(w, ResponseError, "Ping not acknowledged! Start the local server", nil)
-		return
-	}
-
 	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
 		sub := Subscription{
 			Source:      source.PkID,
@@ -121,7 +115,9 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 			SubscriptionID: sub.SubscriptionID,
 			Name:           source.Name,
 		}
+
 		sendResponse(w, ResponseSuccess, "", response)
+		go startValidation(request.CallbackURL, source.SourceID, sub.SubscriptionID)
 	} else {
 		sendResponse(w, ResponseError, ActionNotAllowed, nil)
 	}
@@ -180,7 +176,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(request.Token) != 64 {
-		sendError("input missing wrong lengh", w, InvalidTokenError, 422)
+		sendError("input missing wrong length", w, InvalidTokenError, 422)
 		return
 	}
 

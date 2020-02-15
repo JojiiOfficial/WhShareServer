@@ -48,6 +48,7 @@ type Subscription struct {
 	Source         uint32 `db:"source"`
 	CallbackURL    string `db:"callbackURL"`
 	Time           string `db:"time"`
+	IsValid        bool   `db:"isValid"`
 	LastTrigger    string `db:"lastTrigger"`
 }
 
