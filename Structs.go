@@ -51,6 +51,15 @@ type Subscription struct {
 	LastTrigger    string `db:"lastTrigger"`
 }
 
+//Webhook the actual webhook from a server
+type Webhook struct {
+	PkID     uint32 `db:"pk_id" orm:"pk,ai"`
+	SourceID uint32 `db:"sourceID"`
+	Headers  string `db:"header"`
+	Payload  string `db:"payload"`
+	Received string `db:"received"`
+}
+
 // ------------- REST structs ----------------
 
 //-----> Requests

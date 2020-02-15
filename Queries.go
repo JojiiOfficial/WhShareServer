@@ -14,6 +14,7 @@ const (
 	TableLoginSession  = "LoginSessions"
 	TableSubscriptions = "Subscriptions"
 	TableModes         = "Modes"
+	TableWebhooks      = "Webhooks"
 )
 
 func getInitSQL() dbhelper.QueryChain {
@@ -76,6 +77,12 @@ func getInitSQL() dbhelper.QueryChain {
 			dbhelper.InitSQL{
 				Query:   "INSERT INTO `%s` (`pk_id`, `username`, `password`) VALUES (1, 'nouser', '');",
 				FParams: []string{TableUser},
+			},
+
+			//Webhooks
+			dbhelper.InitSQL{
+				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `sourceID` int(10) unsigned NOT NULL, `header` text NOT NULL, `payload` text NOT NULL, `received` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`pk_id`), KEY `fkeySource` (`sourceID`), CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`sourceID`) REFERENCES `%s` (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4",
+				FParams: []string{TableWebhooks, TableWebhooks, TableSources},
 			},
 		),
 	}
@@ -190,5 +197,18 @@ func (source *Source) insert(db *dbhelper.DBhelper) error {
 	source.Secret = secret
 	source.SourceID = sid
 
+	return nil
+}
+
+func (webhook *Webhook) insert(db *dbhelper.DBhelper) error {
+	rs, err := db.Execf("INSERT INTO %s (sourceID, header, payload) VALUES(?,?,?)", []string{TableWebhooks}, webhook.SourceID, webhook.Headers, webhook.Payload)
+	if err != nil {
+		return err
+	}
+	id, err := rs.LastInsertId()
+	if err != nil {
+		return err
+	}
+	webhook.PkID = uint32(id)
 	return nil
 }

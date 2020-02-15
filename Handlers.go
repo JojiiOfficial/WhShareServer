@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/gorilla/mux"
@@ -289,14 +290,49 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("source or secret is not given in webhook!")
 		return
 	}
-	fmt.Println("New webhook!!:", sourceID, secret)
 
-	headers := r.Header
-	for k, v := range headers {
-		fmt.Println(k, v)
+	source, err := getSourceFromSourceID(db, sourceID)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
 	}
+	c := make(chan bool, 1)
+	if source.Secret == secret {
+		fmt.Println("New valid webhook!!:", source.Name, secret)
+		go (func(req *http.Request) {
+			var headers, payload string
 
-	sendResponse(w, ResponseSuccess, "success", nil)
+			b, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
+			if err != nil {
+				LogError("ReadError: " + err.Error())
+				return
+			}
+			req.Body.Close()
+
+			//get payload
+			payload = string(b)
+
+			//Merge header
+			for k, v := range req.Header {
+				fmt.Println(k, v)
+				headers += k + "=" + strings.Join(v, ";") + "\r\n"
+			}
+			webhook := Webhook{
+				SourceID: source.PkID,
+				Headers:  headers,
+				Payload:  payload,
+			}
+			webhook.insert(db)
+
+			//TODO call clients
+		})(r)
+
+		<-c
+
+		sendResponse(w, ResponseSuccess, "success", nil)
+	} else {
+		fmt.Println("invalid secret for source", sourceID)
+	}
 }
 
 func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) error {
