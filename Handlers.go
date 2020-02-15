@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/gorilla/mux"
 )
@@ -54,6 +55,11 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(token) > 0 && len(token) != 64 {
 		sendError("token invalid", w, InvalidTokenError, 403)
+		return
+	}
+
+	if gaw.IsReserved(request.CallbackURL) {
+		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
 		return
 	}
 
