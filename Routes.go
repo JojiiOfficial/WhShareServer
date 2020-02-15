@@ -34,12 +34,15 @@ func NewRouter() *mux.Router {
 }
 
 var routes = Routes{
+	//User
 	Route{
 		"report",
 		"POST",
 		"/login",
 		login,
 	},
+
+	//Sources
 	Route{
 		"createSource",
 		"POST",
@@ -47,11 +50,19 @@ var routes = Routes{
 		createSource,
 	},
 	Route{
+		"deleteSource",
+		"POST",
+		"/source/delete",
+		removeSource,
+	},
+	Route{
 		"listSources",
 		"POST",
 		"/sources",
 		listSources,
 	},
+
+	//Subscriptions
 	Route{
 		"subscribe",
 		"POST",

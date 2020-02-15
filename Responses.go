@@ -1,6 +1,8 @@
 package main
 
 const (
+	//ActionNotAllowed error from server
+	ActionNotAllowed string = "Action not allowed"
 	//ServerError error from server
 	ServerError string = "Server Error"
 	//WrongInputFormatError wrong user input

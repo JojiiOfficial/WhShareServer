@@ -28,7 +28,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	err := removeSubscription(db, request.SubscriptionID)
 	if err != nil {
-		sendError("sever error", w, ServerError, 500)
+		handleServerError(w, err)
 		return
 	}
 	sendResponse(w, ResponseSuccess, "", nil)
@@ -43,7 +43,6 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := request.Token
-	fmt.Println(token, len(token))
 	if token == "-" {
 		token = ""
 	}
@@ -100,7 +99,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		err := sub.insert(db)
 		if err != nil {
 			fmt.Println(err.Error())
-			sendError("internal error", w, ServerError, 500)
+			handleServerError(w, err)
 			return
 		}
 		response := subscriptionResponse{
@@ -109,7 +108,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 		sendResponse(w, ResponseSuccess, "", response)
 	} else {
-		sendResponse(w, ResponseError, "Not allowed", nil)
+		sendResponse(w, ResponseError, ActionNotAllowed, nil)
 	}
 }
 
@@ -146,7 +145,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	err = source.insert(db)
 	if err != nil {
 		fmt.Print(err.Error())
-		sendError("Internal error", w, ServerError, 500)
+		handleServerError(w, err)
 		return
 	}
 
@@ -158,7 +157,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 //-> /sources
 func listSources(w http.ResponseWriter, r *http.Request) {
-	var request listSourcesRequest
+	var request sourceRequest
 
 	if !parseUserInput(w, r, &request) {
 		return
@@ -178,7 +177,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	if len(request.SourceID) == 0 {
 		sources, err := getSourcesForUser(db, user.Pkid)
 		if err != nil {
-			sendError("Err", w, ServerError, 500)
+			handleServerError(w, err)
 			return
 		}
 
@@ -189,7 +188,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	} else {
 		source, err := getSourceFromSourceID(db, request.SourceID)
 		if err != nil {
-			sendError("Err", w, ServerError, 500)
+			handleServerError(w, err)
 			return
 		}
 		if user.Pkid != source.CreatorID {
@@ -210,6 +209,46 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 }
 
 //-> /source/remove
+func removeSource(w http.ResponseWriter, r *http.Request) {
+	var request sourceRequest
+	if !parseUserInput(w, r, &request) {
+		return
+	}
+	if isStructInvalid(request) {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return
+	}
+	if len(request.Token) != 64 {
+		sendError("token invalid", w, InvalidTokenError, 403)
+		return
+	}
+
+	user, err := getUserIDFromSession(db, request.Token)
+	if err != nil {
+		sendError("Invalid token", w, InvalidTokenError, 403)
+		return
+	}
+
+	source, err := getSourceFromSourceID(db, request.SourceID)
+	if err != nil {
+		sendError("Server error", w, ServerError, 500)
+		return
+	}
+
+	if source.CreatorID != user.Pkid {
+		sendError("user not allowed", w, ActionNotAllowed, 403)
+		return
+	}
+
+	err = deleteSource(db, source.PkID)
+
+	if err != nil {
+		handleServerError(w, err)
+		return
+	}
+
+	sendResponse(w, ResponseSuccess, "", nil)
+}
 
 //User functions ------------------------------
 //-> /login
@@ -226,7 +265,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	token, success, err := loginQuery(db, request.Username, request.Password)
 	if err != nil {
-		sendError("Internal error", w, ServerError, 500)
+		handleServerError(w, err)
 		return
 	}
 
@@ -281,11 +320,7 @@ func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool 
 		return false
 	}
 
-	errEncode := json.Unmarshal(body, p)
-	if handleError(errEncode, w, WrongInputFormatError, 422) {
-		return false
-	}
-	return true
+	return !handleError(json.Unmarshal(body, p), w, WrongInputFormatError, 422)
 }
 
 func handleError(err error, w http.ResponseWriter, message string, statusCode int) bool {
@@ -303,4 +338,11 @@ func sendError(erre string, w http.ResponseWriter, message string, statusCode in
 		LogError(erre)
 	}
 	sendResponse(w, ResponseError, message, nil, statusCode)
+}
+
+func handleServerError(w http.ResponseWriter, err error) {
+	sendError("internal server error", w, ServerError, 500)
+	if err != nil {
+		log.Println(err.Error())
+	}
 }

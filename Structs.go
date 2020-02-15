@@ -76,7 +76,7 @@ type unsubscribeRequest struct {
 	SubscriptionID string `json:"sid"`
 }
 
-type listSourcesRequest struct {
+type sourceRequest struct {
 	Token    string `json:"token"`
 	SourceID string `json:"sid,omitempty"`
 }
