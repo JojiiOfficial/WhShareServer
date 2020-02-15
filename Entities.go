@@ -142,7 +142,5 @@ func validateSubsrciption(u, subID, srcID string) (bool, error) {
 		return true, nil
 	}
 
-	fmt.Println(res.StatusCode)
-
 	return false, nil
 }

@@ -121,6 +121,15 @@ func getUserIDFromSession(db *dbhelper.DBhelper, token string) (*User, error) {
 	return &user, nil
 }
 
+func checkSubscriptionExitsts(db *dbhelper.DBhelper, sourceID uint32, callbackURL string) (bool, error) {
+	var c int
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE source=? AND callbackURL=?", []string{TableSubscriptions}, sourceID, callbackURL)
+	if err != nil {
+		return false, err
+	}
+	return c > 0, nil
+}
+
 func (user *User) isSubscribedTo(db *dbhelper.DBhelper, sourceID uint32) (bool, error) {
 	var c int
 	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=? AND source=?", []string{TableSubscriptions}, user.Pkid, sourceID)

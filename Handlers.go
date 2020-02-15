@@ -34,7 +34,6 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		handleServerError(w, err)
 		return
 	}
-	fmt.Println(request.SubscriptionID, "removed")
 	sendResponse(w, ResponseSuccess, "", nil)
 	return
 }
@@ -86,17 +85,26 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var isSubscribed bool
 	if userID > 1 {
 		is, err := user.isSubscribedTo(db, source.PkID)
 		if err != nil {
-			sendError("input missing", w, ServerError, 500)
-			fmt.Println(err.Error())
+			handleServerError(w, err)
 			return
 		}
-		if is {
-			sendResponse(w, ResponseError, "You can only subscribe one time to a source", nil)
+		isSubscribed = is
+	} else {
+		ex, err := checkSubscriptionExitsts(db, source.PkID, request.CallbackURL)
+		if err != nil {
+			handleServerError(w, err)
 			return
 		}
+		isSubscribed = ex
+	}
+
+	if isSubscribed {
+		sendResponse(w, ResponseError, "You can only subscribe one time to a source", nil)
+		return
 	}
 
 	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
