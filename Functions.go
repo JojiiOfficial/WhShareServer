@@ -88,6 +88,7 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 		fmt.Println(err.Error())
 	}
 	if resp.StatusCode == http.StatusTeapot {
+		fmt.Println("get teapot. unsubscribing", subscription.UserID)
 		err := removeSubscription(db, subscription.SubscriptionID)
 		if err != nil {
 			fmt.Println(err.Error())

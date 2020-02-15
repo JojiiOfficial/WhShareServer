@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	gaw "github.com/JojiiOfficial/GoAw"
@@ -161,10 +162,12 @@ func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
 	_, err := db.Execf("DELETE FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
 	return err
 }
+
 func removeSubscriptionByPK(db *dbhelper.DBhelper, pk uint32) error {
 	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pk)
 	return err
 }
+
 func getValidSubscriptionsFromSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
 	var subscriptions []Subscription
 	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=? AND isValid=1", []string{TableSubscriptions}, sourceID)
@@ -201,6 +204,15 @@ func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error)
 func subscriptionSetValidated(db *dbhelper.DBhelper, subscriptionID string) error {
 	_, err := db.Execf("UPDATE %s SET isValid=1 WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
 	return err
+}
+
+func deleteOldHooks(db *dbhelper.DBhelper) {
+	//Delete webhooks which aren't used anymore
+	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println("Webhook cleanup done")
 }
 
 func (sub *Subscription) trigger(db *dbhelper.DBhelper) {

@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"time"
+
+	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
 //Retry retries after some time
@@ -61,15 +63,15 @@ func removeRetry(subscriptionPK uint32) {
 	}
 }
 
-func handleRetries() {
+func handleRetries(db *dbhelper.DBhelper) {
 	for subsPK, retry := range RetryList {
 		if retry.NextRetry <= time.Now().Unix() {
-			doRetry(subsPK, retry.SourcePK, retry.WebhookPK)
+			doRetry(db, subsPK, retry.SourcePK, retry.WebhookPK)
 		}
 	}
 }
 
-func doRetry(subscriptionPK, sourcePK, WebhookPK uint32) {
+func doRetry(db *dbhelper.DBhelper, subscriptionPK, sourcePK, WebhookPK uint32) {
 	subscription, err := getSubscriptionFromPK(db, subscriptionPK)
 	if err != nil {
 		fmt.Println("getSubsFromPK", err.Error())
@@ -89,11 +91,11 @@ func doRetry(subscriptionPK, sourcePK, WebhookPK uint32) {
 	go doRequest(*subscription, webhook, source)
 }
 
-func startRetryLoop() {
-	go (func() {
+func startRetryLoop(db *dbhelper.DBhelper) {
+	go (func(dbs *dbhelper.DBhelper) {
 		for {
 			time.Sleep(30 * time.Second)
-			handleRetries()
+			handleRetries(dbs)
 		}
-	})()
+	})(db)
 }

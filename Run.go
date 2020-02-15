@@ -44,7 +44,8 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 		})()
 	}
 
-	startRetryLoop()
+	startRetryLoop(db)
+	startCleaner(db)
 	for {
 		time.Sleep(time.Hour)
 	}
