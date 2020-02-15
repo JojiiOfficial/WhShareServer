@@ -13,10 +13,6 @@ type Retry struct {
 	WebhookPK uint32
 }
 
-const (
-	maxTries = 5
-)
-
 //RetryList list of retries
 var RetryList = map[uint32]Retry{}
 

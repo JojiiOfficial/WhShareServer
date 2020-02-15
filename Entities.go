@@ -98,3 +98,18 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 		subscription.trigger(db)
 	}
 }
+
+func ping(u string) (bool, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	res, err := client.Get(u)
+	if err != nil {
+		return false, err
+	}
+	if res.StatusCode == http.StatusOK {
+		return true, nil
+	}
+
+	return false, nil
+}

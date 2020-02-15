@@ -98,6 +98,15 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ack, err := ping(request.CallbackURL)
+	if err != nil {
+		handleServerError(w, err)
+		return
+	} else if !ack {
+		sendResponse(w, ResponseError, "Ping not acknowledged!", nil)
+		return
+	}
+
 	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
 		sub := Subscription{
 			Source:      source.PkID,

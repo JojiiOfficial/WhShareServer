@@ -13,8 +13,10 @@ var Modes = map[string]uint8{
 }
 
 const (
-	//HeaderSource the sourceID of the incomming hook
+	//HeaderSubsID subscription for ping
+	HeaderSubsID = "W_S_SubsID"
+	//HeaderSource the sourceID of the incoming hook
 	HeaderSource = "W_S_Source"
-	//HeaderReceived the unixtime when the hook was received
+	//HeaderReceived the unix time when the hook was received
 	HeaderReceived = "W_S_Source"
 )
