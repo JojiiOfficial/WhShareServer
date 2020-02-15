@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/gorilla/mux"
 )
 
 var (
@@ -139,6 +140,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		Creator:     *user,
 		IsPrivate:   request.Private,
 		Name:        request.Name,
+		Mode:        request.Mode,
 		Description: request.Description,
 	}
 
@@ -276,6 +278,25 @@ func login(w http.ResponseWriter, r *http.Request) {
 	} else {
 		sendResponse(w, ResponseError, "Error logging in", nil, 403)
 	}
+}
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sourceID := vars["sourceID"]
+	secret := vars["secret"]
+
+	if len(sourceID) == 0 || len(secret) == 0 {
+		log.Println("source or secret is not given in webhook!")
+		return
+	}
+	fmt.Println("New webhook!!:", sourceID, secret)
+
+	headers := r.Header
+	for k, v := range headers {
+		fmt.Println(k, v)
+	}
+
+	sendResponse(w, ResponseSuccess, "success", nil)
 }
 
 func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) error {

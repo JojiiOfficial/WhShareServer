@@ -26,6 +26,7 @@ type Source struct {
 	CreatorID    uint32 `db:"creator" json:"-"`
 	CreationTime string `db:"creationTime" json:"crTime"`
 	IsPrivate    bool   `db:"private" json:"isPrivate"`
+	Mode         uint8  `db:"mode" json:"mode"`
 	Creator      User   `db:"-" json:"-"`
 }
 
@@ -64,6 +65,7 @@ type sourceAddRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"descr"`
 	Private     bool   `json:"private"`
+	Mode        uint8  `json:"mode"`
 }
 
 type subscriptionRequest struct {

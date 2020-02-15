@@ -13,6 +13,7 @@ const (
 	TableSources       = "Sources"
 	TableLoginSession  = "LoginSessions"
 	TableSubscriptions = "Subscriptions"
+	TableModes         = "Modes"
 )
 
 func getInitSQL() dbhelper.QueryChain {
@@ -30,13 +31,27 @@ func getInitSQL() dbhelper.QueryChain {
 			//Sources
 			dbhelper.InitSQL{
 				//Create table
-				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `sourceID` text NOT NULL, `creator` int(10) unsigned NOT NULL, `name` text NOT NULL, `description` text NOT NULL, `secret` varchar(48) NOT NULL, `creationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `private` tinyint(1) NOT NULL DEFAULT '0', PRIMARY KEY (`pk_id`), KEY `creator` (`creator`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `sourceID` text NOT NULL, `creator` int(10) unsigned NOT NULL, `mode` TINYINT UNSIGNED NOT NULL,`name` text NOT NULL, `description` text NOT NULL, `secret` varchar(48) NOT NULL, `creationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `private` tinyint(1) NOT NULL DEFAULT '0', PRIMARY KEY (`pk_id`), KEY `creator` (`creator`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 				FParams: []string{TableSources},
 			},
 			dbhelper.InitSQL{
 				//Create foreign key
 				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`creator`) REFERENCES `%s` (`pk_id`);",
 				FParams: []string{TableSources, TableSources, TableUser},
+			},
+
+			//Modes
+			dbhelper.InitSQL{
+				Query:   "CREATE TABLE `%s` ( `modeID` TINYINT UNSIGNED NOT NULL, `name` text NOT NULL, PRIMARY KEY (`modeID`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+				FParams: []string{TableModes},
+			},
+			dbhelper.InitSQL{
+				Query: "INSERT INTO `Modes` (`modeID`, `name`) VALUES ('0', 'Custom'), ('1', 'Gitlab'), ('2', 'Docker'), ('3', 'Github')",
+			},
+			dbhelper.InitSQL{
+				//Create foreign key sources.mode -> modes.modeID
+				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`mode`) REFERENCES `%s` (`modeID`);",
+				FParams: []string{TableSources, TableSources, TableModes},
 			},
 
 			//LoginSessions
@@ -163,7 +178,7 @@ func (session *LoginSession) insert(db *dbhelper.DBhelper) error {
 func (source *Source) insert(db *dbhelper.DBhelper) error {
 	secret := gaw.RandString(48)
 	sid := gaw.RandString(32)
-	rs, err := db.Execf("INSERT INTO %s (creator, name, description, secret, private, sourceID) VALUES(?,?,?,?,?,?)", []string{TableSources}, source.Creator.Pkid, source.Name, source.Description, secret, source.IsPrivate, sid)
+	rs, err := db.Execf("INSERT INTO %s (creator, name, description, secret, private, sourceID, mode) VALUES(?,?,?,?,?,?,?)", []string{TableSources}, source.Creator.Pkid, source.Name, source.Description, secret, source.IsPrivate, sid, source.Mode)
 	if err != nil {
 		return err
 	}
