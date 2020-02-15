@@ -113,7 +113,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 //Sources ------------------------------
-//-> /source/add
+//-> /source/create
 func createSource(w http.ResponseWriter, r *http.Request) {
 	var request sourceAddRequest
 	if !parseUserInput(w, r, &request) {
