@@ -100,7 +100,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 	ack, err := ping(request.CallbackURL, source.SourceID)
 	if !ack || err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err)
 		sendResponse(w, ResponseError, "Ping not acknowledged! Start the local server", nil)
 		return
 	}
