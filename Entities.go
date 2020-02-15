@@ -5,6 +5,8 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -103,7 +105,13 @@ func ping(u string) (bool, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	res, err := client.Get(u)
+	ur, err := url.Parse(u)
+	if err != nil {
+		return false, err
+	}
+	ur.Path = path.Join(ur.Path, "ping")
+	res, err := client.Get(ur.String())
+
 	if err != nil {
 		return false, err
 	}
