@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
-	"reflect"
-	"strings"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
@@ -16,10 +15,11 @@ var (
 	db *dbhelper.DBhelper
 )
 
+//Subscriptions ------------------------------
 //-> /sub/remove
 func unsubscribe(w http.ResponseWriter, r *http.Request) {
 	var request unsubscribeRequest
-	if !handleUserInput(w, r, &request) {
+	if !parseUserInput(w, r, &request) {
 		return
 	}
 	if len(request.SubscriptionID) != 32 {
@@ -31,23 +31,28 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		sendError("sever error", w, ServerError, 500)
 		return
 	}
-	handleError(sendSuccess(w, ResponseSuccess), w, ServerError, 500)
+	sendResponse(w, ResponseSuccess, "", nil)
 	return
 }
 
 //-> /sub/add
 func subscribe(w http.ResponseWriter, r *http.Request) {
 	var request subscriptionRequest
-	if !handleUserInput(w, r, &request) {
+
+	if !parseUserInput(w, r, &request) {
 		return
 	}
 	token := request.Token
+	fmt.Println(token, len(token))
 	if token == "-" {
 		token = ""
 	}
-
-	if isStructInvalid(request) || (len(request.Token) > 0 && len(request.Token) != 64) {
+	if isStructInvalid(request) {
 		sendError("input missing", w, InvalidTokenError, 422)
+		return
+	}
+	if len(token) > 0 && len(token) != 64 {
+		sendError("token invalid", w, InvalidTokenError, 403)
 		return
 	}
 
@@ -73,8 +78,6 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var response subscriptionResponse
-
 	if userID > 1 {
 		is, err := user.isSubscribedTo(db, source.PkID)
 		if err != nil {
@@ -83,11 +86,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if is {
-			response = subscriptionResponse{
-				Message: "You can only subscribe one time to a source",
-				Status:  "error",
-			}
-			handleError(sendSuccess(w, response), w, ServerError, 500)
+			sendResponse(w, ResponseError, "You can only subscribe one time to a source", nil)
 			return
 		}
 	}
@@ -104,28 +103,30 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 			sendError("internal error", w, ServerError, 500)
 			return
 		}
-		response = subscriptionResponse{
-			Status:         ResponseSuccessStr,
+		response := subscriptionResponse{
 			SubscriptionID: sub.SubscriptionID,
 			Name:           source.Name,
 		}
+		sendResponse(w, ResponseSuccess, "", response)
 	} else {
-		response = subscriptionResponse{
-			Status:  ResponseErrorStr,
-			Message: "Not allowed",
-		}
+		sendResponse(w, ResponseError, "Not allowed", nil)
 	}
-	handleError(sendSuccess(w, response), w, ServerError, 500)
 }
 
+//Sources ------------------------------
 //-> /source/add
 func createSource(w http.ResponseWriter, r *http.Request) {
 	var request sourceAddRequest
-	if !handleUserInput(w, r, &request) {
+	if !parseUserInput(w, r, &request) {
 		return
 	}
-	if isStructInvalid(request) || len(request.Token) != 64 {
+	if isStructInvalid(request) {
 		sendError("input missing", w, WrongInputFormatError, 422)
+		return
+	}
+
+	if len(request.Token) != 64 {
+		sendError("token invalid", w, InvalidTokenError, 403)
 		return
 	}
 
@@ -149,18 +150,17 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handleError(sendSuccess(w, sourceAddResponse{
-		Status:   ResponseSuccessStr,
+	sendResponse(w, ResponseSuccess, "", sourceAddResponse{
 		Secret:   source.Secret,
 		SourceID: source.SourceID,
-	}), w, ServerError, 500)
+	})
 }
 
 //-> /sources
 func listSources(w http.ResponseWriter, r *http.Request) {
 	var request listSourcesRequest
 
-	if !handleUserInput(w, r, &request) {
+	if !parseUserInput(w, r, &request) {
 		return
 	}
 
@@ -181,10 +181,11 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 			sendError("Err", w, ServerError, 500)
 			return
 		}
+
 		response = listSourcesResponse{
-			Status:  ResponseSuccessStr,
 			Sources: sources,
 		}
+
 	} else {
 		source, err := getSourceFromSourceID(db, request.SourceID)
 		if err != nil {
@@ -199,20 +200,23 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 				source.Name = "Private"
 			}
 		}
+
 		response = listSourcesResponse{
-			Status:  ResponseSuccessStr,
 			Sources: []Source{*source},
 		}
 	}
 
-	handleError(sendSuccess(w, response), w, ServerError, 500)
+	sendResponse(w, ResponseSuccess, "", response)
 }
 
+//-> /source/remove
+
+//User functions ------------------------------
 //-> /login
 func login(w http.ResponseWriter, r *http.Request) {
 	var request loginRequest
 
-	if !handleUserInput(w, r, &request) {
+	if !parseUserInput(w, r, &request) {
 		return
 	}
 	if isStructInvalid(request) || len(request.Password) != 128 {
@@ -227,19 +231,46 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if success {
-		handleError(sendSuccess(w, loginResponse{
-			Status: ResponseSuccessStr,
-			Token:  token,
-		}), w, ServerError, 500)
+		sendResponse(w, ResponseSuccess, "", loginResponse{
+			Token: token,
+		})
 	} else {
-		handleError(sendSuccess(w, loginResponse{
-			Status: ResponseErrorStr,
-		}), w, ServerError, 500)
+		sendResponse(w, ResponseError, "Error logging in", nil, 403)
 	}
 }
 
+func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) error {
+	statusCode := http.StatusOK
+	s := "0"
+	if status == 1 {
+		s = "1"
+	}
+
+	w.Header().Set(HeaderStatus, s)
+	w.Header().Set(HeaderStatusMessage, message)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	if len(params) > 0 {
+		statusCode = params[0]
+		w.WriteHeader(statusCode)
+	}
+
+	toSend := "error"
+	if payload != nil {
+		b, err := json.Marshal(payload)
+		if err != nil {
+			log.Println(err.Error())
+			return err
+		}
+		toSend = string(b)
+	}
+
+	_, err := fmt.Fprintln(w, toSend)
+	return err
+}
+
 //rest functions
-func handleUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
+func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 100000))
 	if err != nil {
 		LogError("ReadError: " + err.Error())
@@ -257,7 +288,7 @@ func handleUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool
 	return true
 }
 
-func handleError(err error, w http.ResponseWriter, message ErrorMessage, statusCode int) bool {
+func handleError(err error, w http.ResponseWriter, message string, statusCode int) bool {
 	if err == nil {
 		return false
 	}
@@ -265,80 +296,11 @@ func handleError(err error, w http.ResponseWriter, message ErrorMessage, statusC
 	return true
 }
 
-func sendError(erre string, w http.ResponseWriter, message ErrorMessage, statusCode int) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+func sendError(erre string, w http.ResponseWriter, message string, statusCode int) {
 	if statusCode >= 500 {
 		LogCritical(erre)
 	} else {
 		LogError(erre)
 	}
-	w.WriteHeader(statusCode)
-
-	var de []byte
-	var err error
-	if len(string(message)) == 0 {
-		de, err = json.Marshal(&ResponseError)
-	} else {
-		de, err = json.Marshal(&Status{"error", string(message)})
-	}
-
-	if err != nil {
-		panic(err)
-	}
-	_, _ = fmt.Fprintln(w, string(de))
-}
-
-func isStructInvalid(x interface{}) bool {
-	s := reflect.TypeOf(x)
-	for i := s.NumField() - 1; i >= 0; i-- {
-		e := reflect.ValueOf(x).Field(i)
-
-		if isEmptyValue(e) {
-			return true
-		}
-	}
-	return false
-}
-
-func isEmptyValue(e reflect.Value) bool {
-	switch e.Type().Kind() {
-	case reflect.String:
-		if e.String() == "" || strings.Trim(e.String(), " ") == "" {
-			return true
-		}
-	case reflect.Array:
-		for j := e.Len() - 1; j >= 0; j-- {
-			isEmpty := isEmptyValue(e.Index(j))
-			if isEmpty {
-				return true
-			}
-		}
-	case reflect.Slice:
-		return isStructInvalid(e)
-
-	case
-		reflect.Uintptr, reflect.Ptr, reflect.UnsafePointer,
-		reflect.Uint64, reflect.Uint, reflect.Uint8, reflect.Bool,
-		reflect.Struct, reflect.Int64, reflect.Int:
-		{
-			return false
-		}
-	default:
-		fmt.Println(e.Type().Kind(), e)
-		return true
-	}
-	return false
-}
-
-func sendSuccess(w http.ResponseWriter, i interface{}) error {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	de, err := json.Marshal(i)
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(w, string(de))
-	if err != nil {
-		return err
-	}
-	return nil
+	sendResponse(w, ResponseError, message, nil, statusCode)
 }

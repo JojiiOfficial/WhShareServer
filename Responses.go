@@ -1,29 +1,31 @@
 package main
 
-//ErrorMessage err message
-type ErrorMessage string
-
-//ResponseError response for errors
-var ResponseError = Status{"error", "An Servererror occurred"}
-
-//ResponseSuccess response for success but no data
-var ResponseSuccess = Status{"success", ""}
-
 const (
 	//ServerError error from server
-	ServerError ErrorMessage = "Server Error"
+	ServerError string = "Server Error"
 	//WrongInputFormatError wrong user input
-	WrongInputFormatError ErrorMessage = "Wrong inputFormat!"
+	WrongInputFormatError string = "Wrong inputFormat!"
 	//InvalidTokenError token is not valid
-	InvalidTokenError ErrorMessage = "Token not valid"
+	InvalidTokenError string = "Token not valid"
 	//BatchSizeTooLarge batch is too large
-	BatchSizeTooLarge ErrorMessage = "BatchSize soo large!"
+	BatchSizeTooLarge string = "BatchSize soo large!"
 	//WrongIntegerFormat integer is probably no integer
-	WrongIntegerFormat ErrorMessage = "Number is string"
+	WrongIntegerFormat string = "Number is string"
 )
 
-//Status a REST response status
-type Status struct {
-	StatusCode    string `json:"statusCode"`
-	StatusMessage string `json:"statusMessage"`
-}
+//ResponseStatus the status of response
+type ResponseStatus uint8
+
+const (
+	//ResponseError if there was an error
+	ResponseError ResponseStatus = 0
+	//ResponseSuccess if the response is successful
+	ResponseSuccess ResponseStatus = 1
+)
+
+const (
+	//HeaderStatus headername for status in response
+	HeaderStatus string = "rstatus"
+	//HeaderStatusMessage headername for status in response
+	HeaderStatusMessage string = "rmess"
+)
