@@ -110,7 +110,7 @@ func ping(u, sid string) (bool, error) {
 		return false, err
 	}
 	ur.Path = path.Join(ur.Path, "ping")
-	req, err := http.NewRequest("GET", ur.Path, strings.NewReader("b"))
+	req, err := http.NewRequest("GET", ur.String(), strings.NewReader("b"))
 	if err != nil {
 		return false, err
 	}
