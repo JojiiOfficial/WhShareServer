@@ -13,7 +13,11 @@ import (
 )
 
 func deleteSource(db *dbhelper.DBhelper, sourceID uint32) error {
-	_, err := db.Execf("DELETE FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
+	_, err := db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, sourceID)
+	if err != nil {
+		return err
+	}
+	_, err = db.Execf("DELETE FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
 	if err != nil {
 		return err
 	}
