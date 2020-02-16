@@ -9,12 +9,7 @@ import (
 	"net/http"
 
 	gaw "github.com/JojiiOfficial/GoAw"
-	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/gorilla/mux"
-)
-
-var (
-	db *dbhelper.DBhelper
 )
 
 //Subscriptions ------------------------------
@@ -57,7 +52,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if gaw.IsReserved(request.CallbackURL) {
+	if gaw.IsReserved(request.CallbackURL) && !config.BogonAsCallback {
 		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
 		return
 	}

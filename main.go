@@ -8,7 +8,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "0.5"
+const version = "0.7"
 
 var (
 	app        = kingpin.New("server", "A Rest server")
@@ -32,6 +32,11 @@ var (
 	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(getDefaultConfig()).String()
 )
 
+var (
+	config *ConfigStruct
+	db     *dbhelper.DBhelper
+)
+
 func main() {
 	//Set app attributes
 	app.HelpFlag.Short('h')
@@ -39,11 +44,6 @@ func main() {
 
 	//parsing the args
 	parsed := kingpin.MustParse(app.Parse(os.Args[1:]))
-
-	var (
-		config *ConfigStruct
-		db     *dbhelper.DBhelper
-	)
 
 	if parsed != configCmdCreate.FullCommand() {
 		var shouldExit bool

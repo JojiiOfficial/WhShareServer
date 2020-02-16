@@ -12,10 +12,10 @@ import (
 
 //ConfigStruct config for the server
 type ConfigStruct struct {
-	Database      configDBstruct
-	HTTP          configHTTPstruct
-	TLS           configTLSStruct
-	ShowTimeInLog bool `default:"true"`
+	Database        configDBstruct
+	HTTP            configHTTPstruct
+	TLS             configTLSStruct
+	BogonAsCallback bool `default:"false"`
 }
 
 type configDBstruct struct {

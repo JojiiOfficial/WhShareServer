@@ -15,6 +15,10 @@ import (
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	log.Println("Starting version " + version)
 
+	if config.BogonAsCallback {
+		log.Println("Allowing bogon as callbackURL!")
+	}
+
 	ctx := initExitCallback(dab)
 	defer goodbye.Exit(ctx, -1)
 

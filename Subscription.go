@@ -108,7 +108,7 @@ func (subscription *Subscription) startValidation(srcID string) {
 
 	val, err := subscription.validateSubsrciption(srcID)
 	if err != nil || !val {
-		log.Println("Ping failed")
+		log.Println("Ping failed:", err)
 		removeSubscription(db, subscription.SubscriptionID)
 		return
 	}
@@ -150,6 +150,8 @@ func (subscription *Subscription) validateSubsrciption(sourceID string) (bool, e
 
 	if res.StatusCode == http.StatusOK {
 		return true, nil
+	} else if res != nil {
+		log.Println(res.StatusCode)
 	}
 
 	return false, nil
