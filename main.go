@@ -35,7 +35,7 @@ var (
 	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(getDefaultConfig()).String()
 )
 
-const version = "0.02"
+const version = "0.03"
 
 func main() {
 	app.HelpFlag.Short('h')

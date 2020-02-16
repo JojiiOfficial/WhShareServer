@@ -19,7 +19,7 @@ type Routes []Route
 
 //NewRouter create new router
 func NewRouter() *mux.Router {
-	router := mux.NewRouter().StrictSlash(false)
+	router := mux.NewRouter().StrictSlash(true)
 	for _, route := range routes {
 		var handler http.Handler
 		handler = route.HandlerFunc
@@ -77,6 +77,19 @@ var routes = Routes{
 	},
 
 	//Webhook
+	Route{
+		"Post webhook",
+		"POST",
+		"/webhook/post/{sourceID}/{secret}",
+		webhookHandler,
+	},
+	Route{
+		"GET webhook",
+		"GET",
+		"/webhook/get/{sourceID}/{secret}",
+		webhookHandler,
+	},
+
 	Route{
 		"Post webhook",
 		"POST",
