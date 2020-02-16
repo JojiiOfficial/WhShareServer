@@ -96,6 +96,7 @@ func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 	} else {
 		//Successful notification
 		removeRetry(subscription.PkID)
+		log.Println("Removing subscription from retryQueue. Reason: successful notification")
 		subscription.trigger(db)
 	}
 }

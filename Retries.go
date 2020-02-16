@@ -54,7 +54,6 @@ func addRetry(subscriptionPK, sourcePK, WebhookPK uint32) {
 
 func removeRetry(subscriptionPK uint32) {
 	if _, ok := RetryList[subscriptionPK]; ok {
-		log.Println("Removing subscription. Reason: too many retries")
 		delete(RetryList, subscriptionPK)
 	}
 }
@@ -64,6 +63,7 @@ func handleRetries(db *dbhelper.DBhelper) {
 		//If retry time is come
 		if retry.NextRetry <= time.Now().Unix() {
 			if retry.TryNr >= MaxRetries {
+				log.Println("Removing subscription. Reason: too many retries")
 				removeRetry(subsPK)
 				err := removeSubscriptionByPK(db, subsPK)
 				if err != nil {
