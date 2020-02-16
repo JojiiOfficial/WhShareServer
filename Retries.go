@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -22,14 +21,14 @@ var RetryList = map[uint32]Retry{}
 //RetryTimes constant map of
 var RetryTimes = map[uint8]time.Duration{
 	0: 1 * time.Minute,
-	1: 1 * time.Minute,
+	1: 2 * time.Minute,
 	2: 10 * time.Minute,
 	3: 30 * time.Minute,
 	4: 60 * time.Minute,
 	5: 3 * time.Hour,
 }
 
-func getNewRetryTime(index uint8) time.Time {
+func calcNextRetryTime(index uint8) time.Time {
 	return time.Now().Add(RetryTimes[index])
 }
 
@@ -43,23 +42,23 @@ func addRetry(subscriptionPK, sourcePK, WebhookPK uint32, removeSubs func(uint32
 			return
 		}
 		rl.TryNr = rl.TryNr + 1
-		rl.NextRetry = getNewRetryTime(rl.TryNr).Unix()
+		rl.NextRetry = calcNextRetryTime(rl.TryNr).Unix()
 
-		log.Println("Next retry:", getNewRetryTime(rl.TryNr).Format(time.Stamp))
+		log.Println("Next retry:", calcNextRetryTime(rl.TryNr).Format(time.Stamp))
 	} else {
 		log.Println("add new retry to list")
 		RetryList[subscriptionPK] = Retry{
 			WebhookPK: WebhookPK,
 			SourcePK:  sourcePK,
 			TryNr:     0,
-			NextRetry: getNewRetryTime(0).Unix(),
+			NextRetry: calcNextRetryTime(0).Unix(),
 		}
 	}
 }
 
 func removeRetry(subscriptionPK uint32) {
 	if _, ok := RetryList[subscriptionPK]; ok {
-		log.Println("removing subscription")
+		log.Println("removing subscription from retryList")
 		delete(RetryList, subscriptionPK)
 	}
 }
@@ -88,8 +87,9 @@ func doRetry(db *dbhelper.DBhelper, subscriptionPK, sourcePK, WebhookPK uint32) 
 		log.Println("getWebhookFromPK", err.Error())
 		return
 	}
-	fmt.Println("doing retry")
-	go doRequest(*subscription, webhook, source)
+	log.Println("doing retry")
+
+	go subscription.Notify(webhook, source)
 }
 
 func startRetryLoop(db *dbhelper.DBhelper) {

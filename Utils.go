@@ -17,7 +17,7 @@ func getDataPath() string {
 			log.Fatalln(err.Error())
 		}
 	} else if s != nil && !s.IsDir() {
-		log.Fatalln("Datapath-name already taken by a file!")
+		log.Fatalln("DataPath-name already taken by a file!")
 	}
 	return path
 }

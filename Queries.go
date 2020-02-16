@@ -90,6 +90,8 @@ func getInitSQL() dbhelper.QueryChain {
 
 // -------------------- Database QUERIES ----
 
+// ------> Selects
+
 func loginQuery(db *dbhelper.DBhelper, username, password string) (string, bool, error) {
 	var pkid uint32
 	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1", []string{TableUser}, username, password)
@@ -157,17 +159,7 @@ func getSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
 	return sources, nil
 }
 
-func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
-	_, err := db.Execf("DELETE FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
-	return err
-}
-
-func removeSubscriptionByPK(db *dbhelper.DBhelper, pk uint32) error {
-	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pk)
-	return err
-}
-
-func getValidSubscriptionsFromSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
+func getValidSubscriptions(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
 	var subscriptions []Subscription
 	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=? AND isValid=1", []string{TableSubscriptions}, sourceID)
 	return subscriptions, err
@@ -200,13 +192,8 @@ func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error)
 	return &webhook, nil
 }
 
-func subscriptionSetValidated(db *dbhelper.DBhelper, subscriptionID string) error {
-	_, err := db.Execf("UPDATE %s SET isValid=1 WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
-	return err
-}
-
+//Delete webhooks which aren't used anymore
 func deleteOldHooks(db *dbhelper.DBhelper) {
-	//Delete webhooks which aren't used anymore
 	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})
 	if err != nil {
 		log.Println(err.Error())
@@ -214,11 +201,18 @@ func deleteOldHooks(db *dbhelper.DBhelper) {
 	log.Println("Webhook cleanup done")
 }
 
+// ----------> Updates
+
+func subscriptionSetValidated(db *dbhelper.DBhelper, subscriptionID string) error {
+	_, err := db.Execf("UPDATE %s SET isValid=1 WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+	return err
+}
+
 func (sub *Subscription) trigger(db *dbhelper.DBhelper) {
 	db.Execf("UPDATE %s SET lastTrigger=now() WHERE pk_id=?", []string{TableSubscriptions}, sub.PkID)
 }
 
-// Inserts
+// -----------> Inserts
 
 func (sub *Subscription) insert(db *dbhelper.DBhelper) error {
 	sub.SubscriptionID = gaw.RandString(32)
@@ -276,4 +270,30 @@ func (webhook *Webhook) insert(db *dbhelper.DBhelper) error {
 	}
 	webhook.PkID = uint32(id)
 	return nil
+}
+
+// ----------> Deletes
+
+//Delete source
+func (source *Source) delete(db *dbhelper.DBhelper) error {
+	_, err := db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, source.PkID)
+	if err != nil {
+		return err
+	}
+	_, err = db.Execf("DELETE FROM %s WHERE source=?", []string{TableSubscriptions}, source.PkID)
+	if err != nil {
+		return err
+	}
+	_, err = db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSources}, source.PkID)
+	return err
+}
+
+func removeSubscriptionByPK(db *dbhelper.DBhelper, pk uint32) error {
+	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pk)
+	return err
+}
+
+func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
+	_, err := db.Execf("DELETE FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+	return err
 }

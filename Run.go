@@ -9,21 +9,16 @@ import (
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
-	"github.com/mkideal/cli"
 	"github.com/thecodeteam/goodbye"
 )
 
-type runT struct {
-	cli.Helper
-}
-
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	log.Println("Starting version " + version)
+
 	ctx := initExitCallback(dab)
 	defer goodbye.Exit(ctx, -1)
 
 	router := NewRouter()
-
 	db = dab
 
 	if config.TLS.Enabled {
@@ -46,12 +41,14 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	}
 
 	startRetryLoop(db)
-	startCleaner(db)
+	startWebhookCleaner(db)
+
 	for {
 		time.Sleep(time.Hour)
 	}
 }
 
+//Close db connection on exit
 func initExitCallback(db *dbhelper.DBhelper) context.Context {
 	ctx := context.Background()
 	goodbye.Notify(ctx)
@@ -62,4 +59,17 @@ func initExitCallback(db *dbhelper.DBhelper) context.Context {
 		}
 	})
 	return ctx
+}
+
+//A goroutine which deletes every hour unused webhooks
+func startWebhookCleaner(dba *dbhelper.DBhelper) {
+	if *appDebug {
+		log.Println("Start cleaner")
+	}
+	go (func(db *dbhelper.DBhelper) {
+		for {
+			deleteOldHooks(db)
+			time.Sleep(1 * time.Hour)
+		}
+	})(dba)
 }

@@ -108,12 +108,13 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
-		sub := Subscription{
+		subs := Subscription{
 			Source:      source.PkID,
 			CallbackURL: request.CallbackURL,
 			UserID:      userID,
 		}
-		err := sub.insert(db)
+
+		err := subs.insert(db)
 		if err != nil {
 			log.Println(err.Error())
 			handleServerError(w, err)
@@ -121,13 +122,13 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 
 		response := subscriptionResponse{
-			SubscriptionID: sub.SubscriptionID,
+			SubscriptionID: subs.SubscriptionID,
 			Name:           source.Name,
 			Mode:           source.Mode,
 		}
 
 		sendResponse(w, ResponseSuccess, "", response)
-		go startValidation(request.CallbackURL, source.SourceID, sub.SubscriptionID)
+		go subs.startValidation(source.SourceID)
 	} else {
 		sendResponse(w, ResponseError, ActionNotAllowed, nil)
 	}
@@ -262,7 +263,7 @@ func removeSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = deleteSource(db, source.PkID)
+	err = source.delete(db)
 
 	if err != nil {
 		handleServerError(w, err)
@@ -312,7 +313,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	source, err := getSourceFromSourceID(db, sourceID)
 	if err != nil {
-		log.Println(err.Error())
+		sendResponse(w, ResponseError, "404 Not found", nil, 404)
 		return
 	}
 	c := make(chan bool, 1)
@@ -345,7 +346,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			webhook.insert(db)
 
-			notifySubscriber(db, webhook, source)
+			notifyAllSubscriber(db, webhook, source)
 		})(r)
 
 		if <-c {

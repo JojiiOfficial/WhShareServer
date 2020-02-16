@@ -65,7 +65,7 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 			return nil, true
 		}
 		if !strings.HasSuffix(confFile, ".yml") {
-			log.Fatalln("The configfile must end with .yml")
+			log.Fatalln("The configFile must end with .yml")
 			return nil, true
 		}
 		config = ConfigStruct{

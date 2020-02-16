@@ -36,7 +36,7 @@ func NewRouter() *mux.Router {
 var routes = Routes{
 	//User
 	Route{
-		"report",
+		"login",
 		"POST",
 		"/login",
 		login,
@@ -77,6 +77,7 @@ var routes = Routes{
 	},
 
 	//Webhook
+	//Ending with /
 	Route{
 		"Post webhook",
 		"POST",
@@ -90,6 +91,7 @@ var routes = Routes{
 		webhookHandler,
 	},
 
+	//Ending without /
 	Route{
 		"Post webhook",
 		"POST",

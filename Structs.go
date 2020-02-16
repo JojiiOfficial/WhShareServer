@@ -125,14 +125,14 @@ func isStructInvalid(x interface{}) bool {
 	for i := s.NumField() - 1; i >= 0; i-- {
 		e := reflect.ValueOf(x).Field(i)
 
-		if isEmptyValue(e) {
+		if hasEmptyValue(e) {
 			return true
 		}
 	}
 	return false
 }
 
-func isEmptyValue(e reflect.Value) bool {
+func hasEmptyValue(e reflect.Value) bool {
 	switch e.Type().Kind() {
 	case reflect.String:
 		if e.String() == "" || strings.Trim(e.String(), " ") == "" {
@@ -140,7 +140,7 @@ func isEmptyValue(e reflect.Value) bool {
 		}
 	case reflect.Array:
 		for j := e.Len() - 1; j >= 0; j-- {
-			isEmpty := isEmptyValue(e.Index(j))
+			isEmpty := hasEmptyValue(e.Index(j))
 			if isEmpty {
 				return true
 			}

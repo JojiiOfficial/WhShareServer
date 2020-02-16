@@ -8,14 +8,11 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const appName = "server"
-
-var showTimeInLog = false
-var logPrefix = ""
+const version = "0.1"
 
 var (
-	app        = kingpin.New(appName, "A Rest server")
-	appDebug   = app.Flag("debug", "Enable debug mode").Short('d').Bool()
+	app        = kingpin.New("server", "A Rest server")
+	appDebug   = app.Flag("debug", "Enable debug mode").Envar(getEnVar(EnVarDebug)).Short('d').Bool()
 	appNoColor = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
 	appYes     = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
 	appCfgFile = app.
@@ -35,9 +32,8 @@ var (
 	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(getDefaultConfig()).String()
 )
 
-const version = "0.04"
-
 func main() {
+	//Set app attributes
 	app.HelpFlag.Short('h')
 	app.Version(version)
 

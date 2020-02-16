@@ -20,3 +20,8 @@ const (
 	//HeaderReceived the unix time when the hook was received
 	HeaderReceived = "W_S_Source"
 )
+
+const (
+	//EPPingClient endpoint for pinging the client
+	EPPingClient = "ping"
+)

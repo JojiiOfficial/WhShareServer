@@ -12,32 +12,22 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
-func deleteSource(db *dbhelper.DBhelper, sourceID uint32) error {
-	_, err := db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, sourceID)
-	if err != nil {
-		return err
-	}
-	_, err = db.Execf("DELETE FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
-	if err != nil {
-		return err
-	}
-	_, err = db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSources}, sourceID)
-	return err
-}
-
-func notifySubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
-	subscriptions, err := getValidSubscriptionsFromSource(db, source.PkID)
+//Notify all subscriber for a given webhook
+func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
+	subscriptions, err := getValidSubscriptions(db, source.PkID)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	go startPool(db, webhook, source, subscriptions)
+	go (func() {
+		const numWorkers = 4
+		startPool(db, numWorkers, webhook, source, subscriptions)
+	})()
 }
 
-func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscriptions []Subscription) {
-	const numWorkers = 4
-
+//Start notifier pool
+func startPool(db *dbhelper.DBhelper, numWorkers int, webhook *Webhook, source *Source, subscriptions []Subscription) {
 	pos := 0
 
 	c := make(chan int, 1)
@@ -46,25 +36,22 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 	for pos < len(subscriptions) {
 		read := <-c
 		for i := 0; i < read && pos < len(subscriptions); i++ {
-			go startNotfy(&c, subscriptions[pos], webhook, source)
+
+			go (func(c *chan int, subscription *Subscription, webhook *Webhook, source *Source) {
+				rand.Seed(time.Now().UnixNano())
+				<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
+
+				subscription.Notify(webhook, source)
+				*c <- 1
+			})(&c, &subscriptions[pos], webhook, source)
+
 			pos++
 		}
 	}
 }
 
-func startNotfy(c *chan int, subscription Subscription, webhook *Webhook, source *Source) {
-	rand.Seed(time.Now().UnixNano())
-	//Wait some milliseconds to circulate the traffic
-	<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
-
-	log.Printf("Notifying user %d\n", subscription.UserID)
-
-	doRequest(subscription, webhook, source)
-
-	*c <- 1
-}
-
-func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
+//Notify subscriber
+func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -105,20 +92,24 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 			log.Println(err.Error())
 		}
 	} else {
+		//Successful notification
 		removeRetry(subscription.PkID)
 		subscription.trigger(db)
 	}
 }
 
-func startValidation(cbURL, srcID, subsID string) {
-	<-time.After(10 * time.Second)
-	val, err := validateSubsrciption(cbURL, subsID, srcID)
+//Ping subscriber and check for a valid url
+func (subscription *Subscription) startValidation(srcID string) {
+	<-time.After(5 * time.Second)
+
+	val, err := subscription.validateSubsrciption(srcID)
 	if err != nil || !val {
 		log.Println("Ping failed")
-		removeSubscription(db, subsID)
+		removeSubscription(db, subscription.SubscriptionID)
 		return
 	}
-	err = subscriptionSetValidated(db, subsID)
+
+	err = subscriptionSetValidated(db, subscription.SubscriptionID)
 	if err != nil {
 		log.Println(err.Error())
 	} else {
@@ -126,22 +117,27 @@ func startValidation(cbURL, srcID, subsID string) {
 	}
 }
 
-func validateSubsrciption(u, subID, srcID string) (bool, error) {
+func (subscription *Subscription) validateSubsrciption(sourceID string) (bool, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	ur, err := url.Parse(u)
-	if err != nil {
-		return false, err
-	}
-	ur.Path = path.Join(ur.Path, "ping")
-	req, err := http.NewRequest("GET", ur.String(), strings.NewReader("b"))
-	if err != nil {
-		return false, err
-	}
-	req.Header.Set(HeaderSource, srcID)
-	req.Header.Set(HeaderSubsID, subID)
 
+	ur, err := url.Parse(subscription.CallbackURL)
+	if err != nil {
+		return false, err
+	}
+
+	ur.Path = path.Join(ur.Path, EPPingClient)
+	req, err := http.NewRequest("GET", ur.String(), strings.NewReader(""))
+	if err != nil {
+		return false, err
+	}
+
+	//Set required header
+	req.Header.Set(HeaderSource, sourceID)
+	req.Header.Set(HeaderSubsID, subscription.SubscriptionID)
+
+	//Do the request
 	res, err := client.Do(req)
 
 	if err != nil {

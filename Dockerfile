@@ -6,9 +6,7 @@ COPY ./*.go ./
 
 RUN apk add --no-cache git
 RUN go get -d -v 
-RUN CGO_ENABLED=0
-RUN go build -o main
-RUN pwd && ls -lah
+RUN CGO_ENABLED=0 go build -o main
 
 FROM alpine:latest
 
@@ -18,8 +16,5 @@ WORKDIR /app
 COPY --from=builder /app/WhShareServer/main .
 
 RUN mkdir /app/data/
-RUN ls -lath
-
-ENV BRIDGE_DATA_PATH="/app/data/"
 
 CMD [ "/app/main","server","start"]
