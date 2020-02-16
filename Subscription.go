@@ -78,6 +78,7 @@ func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 	//Add header for client
 	req.Header.Set(HeaderReceived, webhook.Received)
 	req.Header.Set(HeaderSource, source.SourceID)
+	req.Header.Set(HeaderSubsID, subscription.SubscriptionID)
 
 	//Do the request
 	resp, err := client.Do(req)
