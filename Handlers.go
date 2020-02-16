@@ -70,7 +70,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	if len(token) > 0 {
 		user, err = getUserIDFromSession(db, token)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println(err.Error())
 			userID = 1
 		} else {
 			userID = user.Pkid
@@ -81,7 +81,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
 		sendError("input missing", w, NotFoundError, 422)
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		return
 	}
 
@@ -115,13 +115,15 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 		err := sub.insert(db)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println(err.Error())
 			handleServerError(w, err)
 			return
 		}
+
 		response := subscriptionResponse{
 			SubscriptionID: sub.SubscriptionID,
 			Name:           source.Name,
+			Mode:           source.Mode,
 		}
 
 		sendResponse(w, ResponseSuccess, "", response)
@@ -164,7 +166,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	err = source.insert(db)
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Print(err.Error())
 		handleServerError(w, err)
 		return
 	}
@@ -310,18 +312,18 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	source, err := getSourceFromSourceID(db, sourceID)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		return
 	}
 	c := make(chan bool, 1)
 	if source.Secret == secret {
-		fmt.Println("New valid webhook!!:", source.Name, secret)
+		log.Println("New valid webhook!!:", source.Name, secret)
 		go (func(req *http.Request) {
 			var headers, payload string
 
 			b, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
 			if err != nil {
-				LogError("ReadError: " + err.Error())
+				log.Println("ReadError: " + err.Error())
 				c <- false
 				return
 			}
@@ -353,7 +355,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		fmt.Println("invalid secret for source", sourceID)
+		log.Println("invalid secret for source", sourceID)
 	}
 }
 
@@ -391,11 +393,11 @@ func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, 
 func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 100000))
 	if err != nil {
-		LogError("ReadError: " + err.Error())
+		log.Println("ReadError: " + err.Error())
 		return false
 	}
 	if err := r.Body.Close(); err != nil {
-		LogError("ReadError: " + err.Error())
+		log.Println("ReadError: " + err.Error())
 		return false
 	}
 
@@ -412,9 +414,9 @@ func handleError(err error, w http.ResponseWriter, message string, statusCode in
 
 func sendError(erre string, w http.ResponseWriter, message string, statusCode int) {
 	if statusCode >= 500 {
-		LogCritical(erre)
+		log.Println(erre)
 	} else {
-		LogError(erre)
+		log.Println(erre)
 	}
 	sendResponse(w, ResponseError, message, nil, statusCode)
 }

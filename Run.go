@@ -18,6 +18,7 @@ type runT struct {
 }
 
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
+	log.Println("Starting version " + version)
 	ctx := initExitCallback(dab)
 	defer goodbye.Exit(ctx, -1)
 
@@ -57,7 +58,7 @@ func initExitCallback(db *dbhelper.DBhelper) context.Context {
 	goodbye.Register(func(ctx context.Context, sig os.Signal) {
 		if db.DB != nil {
 			db.DB.Close()
-			LogInfo("DB closed")
+			log.Println("DB closed")
 		}
 	})
 	return ctx

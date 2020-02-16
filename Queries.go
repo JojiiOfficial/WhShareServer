@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	gaw "github.com/JojiiOfficial/GoAw"
@@ -210,9 +209,9 @@ func deleteOldHooks(db *dbhelper.DBhelper) {
 	//Delete webhooks which aren't used anymore
 	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 	}
-	fmt.Println("Webhook cleanup done")
+	log.Println("Webhook cleanup done")
 }
 
 func (sub *Subscription) trigger(db *dbhelper.DBhelper) {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -9,7 +9,7 @@ import (
 
 func startCleaner(dba *dbhelper.DBhelper) {
 	if *appDebug {
-		fmt.Println("Start cleaner")
+		log.Println("Start cleaner")
 	}
 	go (func(db *dbhelper.DBhelper) {
 		for {

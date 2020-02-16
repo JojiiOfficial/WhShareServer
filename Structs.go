@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"reflect"
 	"strings"
 )
@@ -112,6 +112,7 @@ type subscriptionResponse struct {
 	Message        string `json:"message,omitempty"`
 	SubscriptionID string `json:"sid"`
 	Name           string `json:"name"`
+	Mode           uint8  `json:"mode"`
 }
 
 type listSourcesResponse struct {
@@ -155,7 +156,7 @@ func isEmptyValue(e reflect.Value) bool {
 			return false
 		}
 	default:
-		fmt.Println(e.Type().Kind(), e)
+		log.Println(e.Type().Kind(), e)
 		return true
 	}
 	return false

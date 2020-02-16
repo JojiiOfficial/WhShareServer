@@ -35,9 +35,11 @@ var (
 	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(getDefaultConfig()).String()
 )
 
+const version = "0.02"
+
 func main() {
 	app.HelpFlag.Short('h')
-	app.Version("0.01")
+	app.Version(version)
 
 	//parsing the args
 	parsed := kingpin.MustParse(app.Parse(os.Args[1:]))

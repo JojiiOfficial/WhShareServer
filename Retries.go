@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -36,7 +37,7 @@ func addRetry(subscriptionPK, sourcePK, WebhookPK uint32, removeSubs func(uint32
 	rl, ok := RetryList[subscriptionPK]
 	if ok {
 		if rl.TryNr > 5 {
-			fmt.Printf("Removing from %d retry\n", subscriptionPK)
+			log.Printf("Removing from %d retry\n", subscriptionPK)
 			removeRetry(subscriptionPK)
 			removeSubs(subscriptionPK)
 			return
@@ -44,9 +45,9 @@ func addRetry(subscriptionPK, sourcePK, WebhookPK uint32, removeSubs func(uint32
 		rl.TryNr = rl.TryNr + 1
 		rl.NextRetry = getNewRetryTime(rl.TryNr).Unix()
 
-		fmt.Println("Next retry:", getNewRetryTime(rl.TryNr).Format(time.Stamp))
+		log.Println("Next retry:", getNewRetryTime(rl.TryNr).Format(time.Stamp))
 	} else {
-		fmt.Println("add new retry to list")
+		log.Println("add new retry to list")
 		RetryList[subscriptionPK] = Retry{
 			WebhookPK: WebhookPK,
 			SourcePK:  sourcePK,
@@ -58,7 +59,7 @@ func addRetry(subscriptionPK, sourcePK, WebhookPK uint32, removeSubs func(uint32
 
 func removeRetry(subscriptionPK uint32) {
 	if _, ok := RetryList[subscriptionPK]; ok {
-		fmt.Println("removing subscription")
+		log.Println("removing subscription")
 		delete(RetryList, subscriptionPK)
 	}
 }
@@ -74,17 +75,17 @@ func handleRetries(db *dbhelper.DBhelper) {
 func doRetry(db *dbhelper.DBhelper, subscriptionPK, sourcePK, WebhookPK uint32) {
 	subscription, err := getSubscriptionFromPK(db, subscriptionPK)
 	if err != nil {
-		fmt.Println("getSubsFromPK", err.Error())
+		log.Println("getSubsFromPK", err.Error())
 		return
 	}
 	source, err := getSourceFromPK(db, sourcePK)
 	if err != nil {
-		fmt.Println("getSourceFromPK", err.Error())
+		log.Println("getSourceFromPK", err.Error())
 		return
 	}
 	webhook, err := getWebhookFromPK(db, WebhookPK)
 	if err != nil {
-		fmt.Println("getWebhookFromPK", err.Error())
+		log.Println("getWebhookFromPK", err.Error())
 		return
 	}
 	fmt.Println("doing retry")

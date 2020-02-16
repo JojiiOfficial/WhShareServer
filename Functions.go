@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -43,7 +42,6 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 	for pos < len(subscriptions) {
 		read := <-c
 		for i := 0; i < read && pos < len(subscriptions); i++ {
-			fmt.Println("pos", pos)
 			go startNotfy(&c, subscriptions[pos], webhook, source)
 			pos++
 		}
@@ -55,7 +53,7 @@ func startNotfy(c *chan int, subscription Subscription, webhook *Webhook, source
 	//Wait some milliseconds to circulate the traffic
 	<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
 
-	fmt.Printf("Notifying user %d\n", subscription.UserID)
+	log.Printf("Notifying user %d\n", subscription.UserID)
 
 	doRequest(subscription, webhook, source)
 
@@ -85,20 +83,19 @@ func doRequest(subscription Subscription, webhook *Webhook, source *Source) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 	}
 	if resp.StatusCode == http.StatusTeapot {
-		fmt.Println("get teapot. unsubscribing", subscription.UserID)
 		err := removeSubscription(db, subscription.SubscriptionID)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println(err.Error())
 		}
 	} else if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
 		addRetry(subscription.PkID, source.PkID, webhook.PkID, func(subsPK uint32) {
-			fmt.Printf("Unsubscribe %d because of failed retry attempts\n", subsPK)
+			log.Printf("Unsubscribe %d because of failed retry attempts\n", subsPK)
 			err := removeSubscriptionByPK(db, subsPK)
 			if err != nil {
-				fmt.Println(err.Error())
+				log.Println(err.Error())
 			}
 		})
 	} else {
@@ -111,14 +108,15 @@ func startValidation(cbURL, srcID, subsID string) {
 	<-time.After(10 * time.Second)
 	val, err := validateSubsrciption(cbURL, subsID, srcID)
 	if err != nil || !val {
+		log.Println("Ping failed")
 		removeSubscription(db, subsID)
 		return
 	}
 	err = subscriptionSetValidated(db, subsID)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 	} else {
-		fmt.Println("Successfully validated")
+		log.Println("Successfully validated")
 	}
 }
 
