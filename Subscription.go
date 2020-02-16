@@ -12,6 +12,18 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
+//Subscription the subscription a user made
+type Subscription struct {
+	PkID           uint32 `db:"pk_id" orm:"pk,ai"`
+	SubscriptionID string `db:"subscriptionID"`
+	UserID         uint32 `db:"subscriber"`
+	Source         uint32 `db:"source"`
+	CallbackURL    string `db:"callbackURL"`
+	Time           string `db:"time"`
+	IsValid        bool   `db:"isValid"`
+	LastTrigger    string `db:"lastTrigger"`
+}
+
 //Notify all subscriber for a given webhook
 func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
 	subscriptions, err := getValidSubscriptions(db, source.PkID)
@@ -20,18 +32,21 @@ func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source
 		return
 	}
 
-	go (func() {
-		const numWorkers = 4
-		startPool(db, numWorkers, webhook, source, subscriptions)
-	})()
+	if len(subscriptions) > 0 {
+		go (func() {
+			startPool(db, webhook, source, subscriptions)
+		})()
+	} else {
+		log.Println("No subscriber found!")
+	}
 }
 
 //Start notifier pool
-func startPool(db *dbhelper.DBhelper, numWorkers int, webhook *Webhook, source *Source, subscriptions []Subscription) {
+func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscriptions []Subscription) {
 	pos := 0
 
 	c := make(chan int, 1)
-	c <- numWorkers
+	c <- 4
 
 	for pos < len(subscriptions) {
 		read := <-c
@@ -53,38 +68,25 @@ func startPool(db *dbhelper.DBhelper, numWorkers int, webhook *Webhook, source *
 //Notify subscriber
 func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 20 * time.Second,
 	}
 	req, _ := http.NewRequest("POST", subscription.CallbackURL, strings.NewReader(webhook.Payload))
 
-	headersrn := strings.Split(webhook.Headers, "\r\n")
-	for _, v := range headersrn {
-		if !strings.Contains(v, "=") {
-			continue
-		}
-		kp := strings.Split(v, "=")
-		key := kp[0]
-
-		req.Header.Set(key, kp[1])
-	}
+	//Load headers from webhook.Headers
+	setHeadersFromStr(webhook.Headers, &req.Header)
 
 	//Add header for client
 	req.Header.Set(HeaderReceived, webhook.Received)
 	req.Header.Set(HeaderSource, source.SourceID)
 
+	//Do the request
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println(err.Error())
 	}
 
 	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
-		addRetry(subscription.PkID, source.PkID, webhook.PkID, func(subsPK uint32) {
-			log.Printf("Unsubscribe %d because of failed retry attempts\n", subsPK)
-			err := removeSubscriptionByPK(db, subsPK)
-			if err != nil {
-				log.Println(err.Error())
-			}
-		})
+		addRetry(subscription.PkID, source.PkID, webhook.PkID)
 	} else if resp.StatusCode == http.StatusTeapot {
 		//Unsubscribe
 		err := removeSubscription(db, subscription.SubscriptionID)
@@ -126,8 +128,8 @@ func (subscription *Subscription) validateSubsrciption(sourceID string) (bool, e
 	if err != nil {
 		return false, err
 	}
-
 	ur.Path = path.Join(ur.Path, EPPingClient)
+
 	req, err := http.NewRequest("GET", ur.String(), strings.NewReader(""))
 	if err != nil {
 		return false, err

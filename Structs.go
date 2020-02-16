@@ -40,18 +40,6 @@ type LoginSession struct {
 	User    User
 }
 
-//Subscription the subscription a user made
-type Subscription struct {
-	PkID           uint32 `db:"pk_id" orm:"pk,ai"`
-	SubscriptionID string `db:"subscriptionID"`
-	UserID         uint32 `db:"subscriber"`
-	Source         uint32 `db:"source"`
-	CallbackURL    string `db:"callbackURL"`
-	Time           string `db:"time"`
-	IsValid        bool   `db:"isValid"`
-	LastTrigger    string `db:"lastTrigger"`
-}
-
 //Webhook the actual webhook from a server
 type Webhook struct {
 	PkID     uint32 `db:"pk_id" orm:"pk,ai"`

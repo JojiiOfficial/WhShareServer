@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -318,11 +317,11 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	c := make(chan bool, 1)
 	if source.Secret == secret {
-		log.Println("New valid webhook!!:", source.Name, secret)
-		go (func(req *http.Request) {
-			var headers, payload string
+		log.Println("New valid webhook:", source.Name)
 
-			b, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
+		go (func(req *http.Request) {
+			//Read payload body from webhook
+			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
 			if err != nil {
 				log.Println("ReadError: " + err.Error())
 				c <- false
@@ -331,21 +330,14 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			req.Body.Close()
 			c <- true
 
-			//get payload
-			payload = string(b)
-
-			//Merge header
-			for k, v := range req.Header {
-				headers += k + "=" + strings.Join(v, ";") + "\r\n"
-			}
+			headers := headerToString(req.Header)
 
 			webhook := &Webhook{
 				SourceID: source.PkID,
 				Headers:  headers,
-				Payload:  payload,
+				Payload:  string(payload),
 			}
 			webhook.insert(db)
-
 			notifyAllSubscriber(db, webhook, source)
 		})(r)
 
