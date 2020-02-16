@@ -383,6 +383,8 @@ func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, 
 			return err
 		}
 		toSend = string(b)
+	} else if len(message) > 0 {
+		toSend = message
 	}
 
 	_, err := fmt.Fprintln(w, toSend)
