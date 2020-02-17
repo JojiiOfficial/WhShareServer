@@ -156,7 +156,32 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		log.Fatalln(err.Error())
 		return nil, true
 	}
+
+	config.LoadInfo()
+
 	return &config, false
+}
+
+//LoadInfo prints debugging config information
+func (config *ConfigStruct) LoadInfo() {
+	docker, gh, gl := 0, 0, 0
+	jsonobjects := config.Server.WebhookBlacklist.JSONObjects
+
+	d, has := jsonobjects["docker"]
+	if has {
+		docker = len(d)
+	}
+	d, has = jsonobjects["github"]
+	if has {
+		gh = len(d)
+	}
+	d, has = jsonobjects["gitlab"]
+	if has {
+		gl = len(d)
+	}
+
+	log.Printf("Blacklist: (%dx docker, %dx github, %dx gitlab) JSONObjects to block\n", docker, gh, gl)
+	log.Printf("Header values: %d\n", len(config.Server.WebhookBlacklist.HeaderValues))
 }
 
 //Check check the config file of logical errors

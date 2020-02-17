@@ -31,6 +31,8 @@ func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source
 	}
 
 	if len(subscriptions) > 0 {
+		log.Printf("Starting pool for %d subscriber\n", len(subscriptions))
+
 		go (func() {
 			startPool(db, webhook, source, subscriptions)
 		})()
@@ -53,7 +55,6 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 			go (func(c *chan int, subscription *Subscription, webhook *Webhook, source *Source) {
 				rand.Seed(time.Now().UnixNano())
 				<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
-
 				subscription.Notify(webhook, source)
 				*c <- 1
 			})(&c, &subscriptions[pos], webhook, source)
