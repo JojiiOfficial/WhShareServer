@@ -4,8 +4,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -26,7 +24,7 @@ type Subscription struct {
 
 //Notify all subscriber for a given webhook
 func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
-	subscriptions, err := getValidSubscriptions(db, source.PkID)
+	subscriptions, err := getSubscriptionsForSource(db, source.PkID)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -87,7 +85,7 @@ func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 	}
 
 	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
-		addRetry(subscription.PkID, source.PkID, webhook.PkID)
+		retryService.add(subscription.PkID, source.PkID, webhook.PkID)
 	} else if resp.StatusCode == http.StatusTeapot {
 		//Unsubscribe
 		err := removeSubscription(db, subscription.SubscriptionID)
@@ -96,63 +94,13 @@ func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 		}
 	} else {
 		//Successful notification
-		removeRetry(subscription.PkID)
+		retryService.remove(subscription.PkID)
 		log.Println("Removing subscription from retryQueue. Reason: successful notification")
-		subscription.trigger(db)
+
+		if !subscription.IsValid {
+			subscription.triggerAndValidate(db)
+		} else {
+			subscription.trigger(db)
+		}
 	}
-}
-
-//Ping subscriber and check for a valid url
-func (subscription *Subscription) startValidation(srcID string) {
-	<-time.After(5 * time.Second)
-
-	val, err := subscription.validateSubsrciption(srcID)
-	if err != nil || !val {
-		log.Println("Ping failed:", err)
-		removeSubscription(db, subscription.SubscriptionID)
-		return
-	}
-
-	err = subscriptionSetValidated(db, subscription.SubscriptionID)
-	if err != nil {
-		log.Println(err.Error())
-	} else {
-		log.Println("Successfully validated")
-	}
-}
-
-func (subscription *Subscription) validateSubsrciption(sourceID string) (bool, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	ur, err := url.Parse(subscription.CallbackURL)
-	if err != nil {
-		return false, err
-	}
-	ur.Path = path.Join(ur.Path, EPPingClient)
-
-	req, err := http.NewRequest("GET", ur.String(), strings.NewReader(""))
-	if err != nil {
-		return false, err
-	}
-
-	//Set required header
-	req.Header.Set(HeaderSource, sourceID)
-	req.Header.Set(HeaderSubsID, subscription.SubscriptionID)
-
-	//Do the request
-	res, err := client.Do(req)
-
-	if err != nil {
-		return false, err
-	}
-
-	if res.StatusCode == http.StatusOK {
-		return true, nil
-	} else if res != nil {
-		log.Println(res.StatusCode)
-	}
-
-	return false, nil
 }

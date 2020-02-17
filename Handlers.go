@@ -122,7 +122,6 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sendResponse(w, ResponseSuccess, "", response)
-		go subs.startValidation(source.SourceID)
 	} else {
 		sendResponse(w, ResponseError, ActionNotAllowed, nil)
 	}

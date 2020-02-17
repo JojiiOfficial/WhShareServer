@@ -11,6 +11,10 @@ import (
 	"github.com/thecodeteam/goodbye"
 )
 
+var (
+	retryService *RetryService
+)
+
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	log.Println("Starting version " + version)
 
@@ -41,7 +45,9 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 		})()
 	}
 
-	startRetryLoop(db)
+	retryService = NewRetryService(db, config)
+	retryService.start()
+
 	startWebhookCleaner(db)
 
 	for {

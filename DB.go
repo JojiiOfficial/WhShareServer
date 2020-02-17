@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"strconv"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -8,6 +9,7 @@ import (
 )
 
 func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
+	log.Println("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
 		config.Database.Username,
 		config.Database.Pass,
@@ -18,6 +20,7 @@ func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Println("Connected successfully")
 	db.Options.Debug = *appDebug
 	db.Options.UseColors = !(*appNoColor)
 	return db, updateDB(db)

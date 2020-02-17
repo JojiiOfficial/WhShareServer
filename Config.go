@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 	"github.com/JojiiOfficial/configor"
@@ -18,10 +19,16 @@ type ConfigStruct struct {
 	HTTPS    configTLSStruct
 }
 
+type configRetries struct {
+	RetryTimes         map[uint8]time.Duration
+	RetryInterval      time.Duration `required:"true"`
+	InvalidUserRetries uint8         `required:"true" default:"2"`
+}
+
 type configServer struct {
 	BogonAsCallback bool `default:"false"`
 	WorkerCount     int  `default:"8"`
-	RetryTimes      map[uint8]uint
+	Retries         configRetries
 }
 
 type configDBstruct struct {
@@ -73,13 +80,17 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		config = ConfigStruct{
 			Server: configServer{
 				BogonAsCallback: false,
-				RetryTimes: map[uint8]uint{
-					0: 1,
-					1: 10,
-					2: 30,
-					3: 60,
-					4: 120,
-					5: 10 * 60,
+				Retries: configRetries{
+					RetryTimes: map[uint8]time.Duration{
+						0: 1 * time.Minute,
+						1: 10 * time.Minute,
+						2: 30 * time.Minute,
+						3: 60 * time.Minute,
+						4: 2 * time.Hour,
+						5: 10 * time.Hour,
+					},
+					RetryInterval:      10 * time.Second,
+					InvalidUserRetries: 2,
 				},
 			},
 			Database: configDBstruct{

@@ -159,9 +159,9 @@ func getSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
 	return sources, nil
 }
 
-func getValidSubscriptions(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
+func getSubscriptionsForSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
 	var subscriptions []Subscription
-	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=? AND isValid=1", []string{TableSubscriptions}, sourceID)
+	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
 	return subscriptions, err
 }
 
@@ -203,8 +203,8 @@ func deleteOldHooks(db *dbhelper.DBhelper) {
 
 // ----------> Updates
 
-func subscriptionSetValidated(db *dbhelper.DBhelper, subscriptionID string) error {
-	_, err := db.Execf("UPDATE %s SET isValid=1 WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+func (sub *Subscription) triggerAndValidate(db *dbhelper.DBhelper) error {
+	_, err := db.Execf("UPDATE %s SET isValid=1, lastTrigger=now() WHERE subscriptionID=?", []string{TableSubscriptions}, sub.SubscriptionID)
 	return err
 }
 
