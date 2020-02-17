@@ -23,6 +23,7 @@ type ConfigStruct struct {
 
 type configWhBlacklist struct {
 	HeaderValues map[string][]string
+	JSONObjects  map[string][]string
 }
 
 type configRetries struct {
@@ -107,8 +108,18 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 					DatabasePort: 3306,
 				},
 				WebhookBlacklist: configWhBlacklist{
-					map[string][]string{
-						"x-github-event": []string{"ping"},
+					HeaderValues: map[string][]string{
+						"x-github-event": []string{
+							"ping",
+							"deploy_key",
+						},
+					},
+					JSONObjects: map[string][]string{
+						"github": []string{},
+						"gitlab": []string{},
+						"docker": []string{
+							"callback_url",
+						},
 					},
 				},
 			},
@@ -145,7 +156,6 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		log.Fatalln(err.Error())
 		return nil, true
 	}
-
 	return &config, false
 }
 

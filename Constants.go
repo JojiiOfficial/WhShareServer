@@ -1,5 +1,21 @@
 package main
 
+//StrToMode string to mode
+var StrToMode = map[string]uint8{
+	"custom": 0,
+	"gitlab": 1,
+	"docker": 2,
+	"github": 3,
+}
+
+//ModeToString mode to string
+var ModeToString = map[uint8]string{
+	0: "custom",
+	1: "gitlab",
+	2: "docker",
+	3: "github",
+}
+
 const (
 	//DefaultConfigFile default config filename
 	DefaultConfigFile = "config.yml"

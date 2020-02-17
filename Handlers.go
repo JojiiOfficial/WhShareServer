@@ -384,12 +384,25 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			req.Body.Close()
 
-			c <- true
-
+			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
 			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
 				log.Printf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
+
+				c <- true
 				return
 			}
+
+			//Delete in config specified json objects
+			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[ModeToString[source.Mode]], false)
+			if err != nil {
+				log.Println("Error filtering JSON!")
+				log.Println(err.Error())
+
+				c <- true
+				return
+			}
+
+			c <- true
 
 			headers := headerToString(req.Header)
 
