@@ -11,11 +11,11 @@ import (
 func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
 	log.Println("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
-		config.Database.Username,
-		config.Database.Pass,
-		config.Database.Host,
-		strconv.Itoa(config.Database.DatabasePort),
-		config.Database.Database,
+		config.Server.Database.Username,
+		config.Server.Database.Pass,
+		config.Server.Database.Host,
+		strconv.Itoa(config.Server.Database.DatabasePort),
+		config.Server.Database.Database,
 	)
 	if err != nil {
 		return nil, err

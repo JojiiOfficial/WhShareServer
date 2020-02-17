@@ -383,7 +383,13 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			req.Body.Close()
+
 			c <- true
+
+			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
+				log.Printf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
+				return
+			}
 
 			headers := headerToString(req.Header)
 

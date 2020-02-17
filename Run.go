@@ -28,20 +28,20 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	router := NewRouter()
 	db = dab
 
-	if config.HTTPS.Enabled {
+	if config.Webserver.HTTPS.Enabled {
 		go (func() {
 			if debug {
-				log.Printf("Server started TLS on port (%s)\n", config.HTTPS.ListenAddress)
+				log.Printf("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
 			}
-			log.Fatal(http.ListenAndServeTLS(config.HTTPS.ListenAddress, config.HTTPS.CertFile, config.HTTPS.KeyFile, router))
+			log.Fatal(http.ListenAndServeTLS(config.Webserver.HTTPS.ListenAddress, config.Webserver.HTTPS.CertFile, config.Webserver.HTTPS.KeyFile, router))
 		})()
 	}
-	if config.HTTP.Enabled {
+	if config.Webserver.HTTP.Enabled {
 		go (func() {
 			if debug {
-				log.Printf("Server started HTTP on port (%s)\n", config.HTTP.ListenAddress)
+				log.Printf("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
 			}
-			log.Fatal(http.ListenAndServe(config.HTTP.ListenAddress, router))
+			log.Fatal(http.ListenAndServe(config.Webserver.HTTP.ListenAddress, router))
 		})()
 	}
 

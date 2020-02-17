@@ -13,10 +13,16 @@ import (
 
 //ConfigStruct config for the server
 type ConfigStruct struct {
-	Server   configServer
-	Database configDBstruct
-	HTTP     configHTTPstruct
-	HTTPS    configTLSStruct
+	Server configServer
+
+	Webserver struct {
+		HTTP  configHTTPstruct
+		HTTPS configTLSStruct
+	}
+}
+
+type configWhBlacklist struct {
+	HeaderValues map[string][]string
 }
 
 type configRetries struct {
@@ -26,6 +32,8 @@ type configRetries struct {
 }
 
 type configServer struct {
+	Database          configDBstruct
+	WebhookBlacklist  configWhBlacklist
 	AllowRegistration bool `default:"false"`
 	BogonAsCallback   bool `default:"false"`
 	WorkerCount       int  `default:"8"`
@@ -94,18 +102,28 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 					RetryInterval:      10 * time.Second,
 					InvalidUserRetries: 2,
 				},
+				Database: configDBstruct{
+					Host:         "localhost",
+					DatabasePort: 3306,
+				},
+				WebhookBlacklist: configWhBlacklist{
+					map[string][]string{
+						"x-github-event": []string{"ping"},
+					},
+				},
 			},
-			Database: configDBstruct{
-				Host:         "localhost",
-				DatabasePort: 3306,
-			},
-			HTTP: configHTTPstruct{
-				Enabled:       true,
-				ListenAddress: ":80",
-			},
-			HTTPS: configTLSStruct{
-				Enabled:       false,
-				ListenAddress: ":443",
+			Webserver: struct {
+				HTTP  configHTTPstruct
+				HTTPS configTLSStruct
+			}{
+				HTTP: configHTTPstruct{
+					Enabled:       true,
+					ListenAddress: ":80",
+				},
+				HTTPS: configTLSStruct{
+					Enabled:       false,
+					ListenAddress: ":443",
+				},
 			},
 		}
 	}
@@ -133,29 +151,29 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 
 //Check check the config file of logical errors
 func (config *ConfigStruct) Check() bool {
-	if !config.HTTP.Enabled && !config.HTTPS.Enabled {
+	if !config.Webserver.HTTP.Enabled && !config.Webserver.HTTPS.Enabled {
 		log.Println("You must at least enable one of the server protocols!")
 		return false
 	}
 
-	if config.HTTPS.Enabled {
-		if len(config.HTTPS.CertFile) == 0 || len(config.HTTPS.KeyFile) == 0 {
+	if config.Webserver.HTTPS.Enabled {
+		if len(config.Webserver.HTTPS.CertFile) == 0 || len(config.Webserver.HTTPS.KeyFile) == 0 {
 			log.Println("If you enable TLS you need to set CertFile and KeyFile!")
 			return false
 		}
 		//Check SSL files
-		if !gaw.FileExists(config.HTTPS.CertFile) {
+		if !gaw.FileExists(config.Webserver.HTTPS.CertFile) {
 			log.Println("Can't find the SSL certificate. File not found")
 			return false
 		}
-		if !gaw.FileExists(config.HTTPS.KeyFile) {
+		if !gaw.FileExists(config.Webserver.HTTPS.KeyFile) {
 			log.Println("Can't find the SSL key. File not found")
 			return false
 		}
 	}
 
-	if config.Database.DatabasePort < 1 || config.Database.DatabasePort > 65535 {
-		log.Printf("Invalid port for database %d\n", config.Database.DatabasePort)
+	if config.Server.Database.DatabasePort < 1 || config.Server.Database.DatabasePort > 65535 {
+		log.Printf("Invalid port for database %d\n", config.Server.Database.DatabasePort)
 		return false
 	}
 

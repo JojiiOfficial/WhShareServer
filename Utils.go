@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 )
@@ -43,4 +44,29 @@ func setHeadersFromStr(headers string, header *http.Header) {
 
 		(*header).Set(key, kp[1])
 	}
+}
+
+func isHeaderBlocklistetd(headers http.Header, blocklist *map[string][]string) bool {
+	start := time.Now()
+
+	for k, headerValues := range headers {
+		blocklistValues, ok := (*blocklist)[strings.ToLower(k)]
+		if ok {
+			for _, headerValue := range headerValues {
+				for _, blocklistValue := range blocklistValues {
+					if strings.ToLower(blocklistValue) == strings.ToLower(headerValue) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	dur := time.Now().Sub(start)
+	//Print only if 'critical'
+	if dur > 1*time.Second {
+		log.Printf("Header checking took %s\n", dur.String())
+	}
+
+	return false
 }
