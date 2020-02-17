@@ -52,7 +52,8 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if gaw.IsReserved(request.CallbackURL) && !config.Server.BogonAsCallback {
+	//Check if ip is bogon IPs are allowed. If not check IP
+	if !config.Server.BogonAsCallback && gaw.IsReserved(request.CallbackURL) {
 		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
 		return
 	}
@@ -68,6 +69,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 			userID = 1
 		} else {
 			userID = user.Pkid
+			user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 		}
 	}
 
@@ -149,6 +151,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
+	user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	nameExitst, err := user.hasSourceWithName(db, request.Name)
 	if err != nil {
@@ -200,6 +203,8 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
+	user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+
 	var response listSourcesResponse
 	if len(request.SourceID) == 0 {
 		sources, err := getSourcesForUser(db, user.Pkid)
@@ -256,6 +261,8 @@ func removeSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
 		if err.Error() == ErrorNoRowsInResultSet {
@@ -286,7 +293,7 @@ func removeSource(w http.ResponseWriter, r *http.Request) {
 //User functions ------------------------------
 //-> /login
 func login(w http.ResponseWriter, r *http.Request) {
-	var request loginRequest
+	var request credentialRequest
 
 	if !parseUserInput(w, r, &request) {
 		return
@@ -296,7 +303,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, success, err := loginQuery(db, request.Username, request.Password)
+	token, success, err := loginQuery(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
 		handleServerError(w, err)
 		return
@@ -309,6 +316,43 @@ func login(w http.ResponseWriter, r *http.Request) {
 	} else {
 		sendResponse(w, ResponseError, "Error logging in", nil, 403)
 	}
+}
+
+func register(w http.ResponseWriter, r *http.Request) {
+	if !config.Server.AllowRegistration {
+		sendResponse(w, ResponseError, "Server doesn't accept registrations", nil, 403)
+		return
+	}
+
+	var request credentialRequest
+
+	if !parseUserInput(w, r, &request) {
+		return
+	}
+
+	if isStructInvalid(request) || len(request.Password) != 128 || len(request.Username) > 30 {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return
+	}
+
+	exists, err := userExitst(db, request.Username)
+	if err != nil {
+		handleServerError(w, err)
+		return
+	}
+
+	if exists {
+		sendResponse(w, ResponseError, "User exists", nil)
+		return
+	}
+
+	err = insertUser(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
+	if err != nil {
+		handleServerError(w, err)
+		return
+	}
+
+	sendResponse(w, ResponseSuccess, "", nil)
 }
 
 func webhookHandler(w http.ResponseWriter, r *http.Request) {

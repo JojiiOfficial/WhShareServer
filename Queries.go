@@ -25,7 +25,7 @@ func getInitSQL() dbhelper.QueryChain {
 			//User
 			dbhelper.InitSQL{
 				//Create table
-				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`)) ENGINE = InnoDB;",
+				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `ip` varchar(16) NOT NULL, `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`)) ENGINE = InnoDB;",
 				FParams: []string{TableUser},
 			},
 
@@ -75,7 +75,7 @@ func getInitSQL() dbhelper.QueryChain {
 
 			//Insert user
 			dbhelper.InitSQL{
-				Query:   "INSERT INTO `%s` (`pk_id`, `username`, `password`) VALUES (1, 'nouser', '');",
+				Query:   "INSERT INTO `%s` (`pk_id`, `username`, `password`, `ip`) VALUES (1, 'nouser', '','-');",
 				FParams: []string{TableUser},
 			},
 
@@ -92,7 +92,7 @@ func getInitSQL() dbhelper.QueryChain {
 
 // ------> Selects
 
-func loginQuery(db *dbhelper.DBhelper, username, password string) (string, bool, error) {
+func loginQuery(db *dbhelper.DBhelper, username, password, ip string) (string, bool, error) {
 	var pkid uint32
 	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1", []string{TableUser}, username, password)
 	if err != nil || pkid < 1 {
@@ -110,7 +110,14 @@ func loginQuery(db *dbhelper.DBhelper, username, password string) (string, bool,
 		return "", false, err
 	}
 
+	updateIP(db, pkid, ip)
+
 	return session.Token, true, nil
+}
+
+func updateIP(db *dbhelper.DBhelper, userID uint32, ip string) error {
+	_, err := db.Execf("UPDATE %s SET ip=? WHERE pk_id=?", []string{TableUser}, ip, userID)
+	return err
 }
 
 func getUserIDFromSession(db *dbhelper.DBhelper, token string) (*User, error) {
@@ -139,6 +146,10 @@ func (user *User) isSubscribedTo(db *dbhelper.DBhelper, sourceID uint32) (bool, 
 		return false, err
 	}
 	return c > 0, nil
+}
+
+func (user *User) updateIP(db *dbhelper.DBhelper, ip string) error {
+	return updateIP(db, user.Pkid, ip)
 }
 
 func getSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, error) {
@@ -190,6 +201,17 @@ func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error)
 		return nil, err
 	}
 	return &webhook, nil
+}
+
+func userExitst(db *dbhelper.DBhelper, username string) (bool, error) {
+	var c int
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE username=?", []string{TableUser}, username)
+	return c > 0, err
+}
+
+func insertUser(db *dbhelper.DBhelper, username, password, ip string) error {
+	_, err := db.Execf("INSERT INTO %s (username, password, ip) VALUES(?,?,?)", []string{TableUser}, username, password, ip)
+	return err
 }
 
 func (user *User) hasSourceWithName(db *dbhelper.DBhelper, name string) (bool, error) {

@@ -53,7 +53,7 @@ type Webhook struct {
 
 //-----> Requests
 
-type loginRequest struct {
+type credentialRequest struct {
 	Username string `json:"username"`
 	Password string `json:"pass"`
 }

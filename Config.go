@@ -26,9 +26,10 @@ type configRetries struct {
 }
 
 type configServer struct {
-	BogonAsCallback bool `default:"false"`
-	WorkerCount     int  `default:"8"`
-	Retries         configRetries
+	AllowRegistration bool `default:"false"`
+	BogonAsCallback   bool `default:"false"`
+	WorkerCount       int  `default:"8"`
+	Retries           configRetries
 }
 
 type configDBstruct struct {
@@ -49,7 +50,7 @@ type configTLSStruct struct {
 
 //Config for HTTP
 type configHTTPstruct struct {
-	Enabled       bool   `default:"true"`
+	Enabled       bool   `default:"false"`
 	ListenAddress string `default:":80"`
 }
 
@@ -79,7 +80,8 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		}
 		config = ConfigStruct{
 			Server: configServer{
-				BogonAsCallback: false,
+				AllowRegistration: false,
+				BogonAsCallback:   false,
 				Retries: configRetries{
 					RetryTimes: map[uint8]time.Duration{
 						0: 1 * time.Minute,
@@ -99,7 +101,7 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 			},
 			HTTP: configHTTPstruct{
 				Enabled:       true,
-				ListenAddress: "127.0.0.1:80",
+				ListenAddress: ":80",
 			},
 			HTTPS: configTLSStruct{
 				Enabled:       false,

@@ -41,6 +41,12 @@ var routes = Routes{
 		"/login",
 		login,
 	},
+	Route{
+		"register",
+		"POST",
+		"/user/create",
+		register,
+	},
 
 	//Sources
 	Route{
