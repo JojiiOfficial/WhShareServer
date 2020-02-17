@@ -192,6 +192,12 @@ func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error)
 	return &webhook, nil
 }
 
+func (user *User) hasSourceWithName(db *dbhelper.DBhelper, name string) (bool, error) {
+	var c int
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE name=? AND creator=?", []string{TableSources}, name, user.Pkid)
+	return c > 0, err
+}
+
 //Delete webhooks which aren't used anymore
 func deleteOldHooks(db *dbhelper.DBhelper) {
 	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})

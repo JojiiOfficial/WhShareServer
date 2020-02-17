@@ -15,6 +15,8 @@ const (
 	BatchSizeTooLarge string = "BatchSize soo large!"
 	//WrongIntegerFormat integer is probably no integer
 	WrongIntegerFormat string = "Number is string"
+	//MultipleSourceNameErr err name already exists
+	MultipleSourceNameErr string = "You can't have multiple sources with the same name"
 )
 
 //ResponseStatus the status of response

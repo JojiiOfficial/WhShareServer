@@ -150,6 +150,17 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nameExitst, err := user.hasSourceWithName(db, request.Name)
+	if err != nil {
+		handleServerError(w, err)
+		return
+	}
+
+	if nameExitst {
+		sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
+		return
+	}
+
 	source := &Source{
 		Creator:     *user,
 		IsPrivate:   request.Private,
@@ -247,7 +258,13 @@ func removeSource(w http.ResponseWriter, r *http.Request) {
 
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
-		sendError("Server error", w, ServerError, 500)
+		if err.Error() == ErrorNoRowsInResultSet {
+			//Source just not found if no rows in result set
+			sendResponse(w, ResponseError, NotFoundError, nil, 404)
+			return
+		}
+		//Real db error
+		handleServerError(w, err)
 		return
 	}
 
