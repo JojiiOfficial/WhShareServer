@@ -46,7 +46,7 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 	pos := 0
 
 	c := make(chan int, 1)
-	c <- 4
+	c <- config.Server.WorkerCount
 
 	for pos < len(subscriptions) {
 		read := <-c

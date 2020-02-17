@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -15,7 +14,7 @@ import (
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	log.Println("Starting version " + version)
 
-	if config.BogonAsCallback {
+	if config.Server.BogonAsCallback {
 		log.Println("Allowing bogon as callbackURL!")
 	}
 
@@ -25,22 +24,20 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	router := NewRouter()
 	db = dab
 
-	if config.TLS.Enabled {
+	if config.HTTPS.Enabled {
 		go (func() {
-			address := config.TLS.ListenAddress + strconv.Itoa(config.TLS.Port)
 			if debug {
-				log.Printf("Server started TLS on port (%s)\n", address)
+				log.Printf("Server started TLS on port (%s)\n", config.HTTPS.ListenAddress)
 			}
-			log.Fatal(http.ListenAndServeTLS(address, config.TLS.CertFile, config.TLS.KeyFile, router))
+			log.Fatal(http.ListenAndServeTLS(config.HTTPS.ListenAddress, config.HTTPS.CertFile, config.HTTPS.KeyFile, router))
 		})()
 	}
 	if config.HTTP.Enabled {
 		go (func() {
-			address := config.HTTP.ListenAddress + strconv.Itoa(config.HTTP.Port)
 			if debug {
-				log.Printf("Server started HTTP on port (%s)\n", address)
+				log.Printf("Server started HTTP on port (%s)\n", config.HTTP.ListenAddress)
 			}
-			log.Fatal(http.ListenAndServe(address, router))
+			log.Fatal(http.ListenAndServe(config.HTTP.ListenAddress, router))
 		})()
 	}
 

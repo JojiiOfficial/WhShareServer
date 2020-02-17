@@ -52,7 +52,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if gaw.IsReserved(request.CallbackURL) && !config.BogonAsCallback {
+	if gaw.IsReserved(request.CallbackURL) && !config.Server.BogonAsCallback {
 		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
 		return
 	}

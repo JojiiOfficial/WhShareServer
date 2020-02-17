@@ -12,10 +12,16 @@ import (
 
 //ConfigStruct config for the server
 type ConfigStruct struct {
-	Database        configDBstruct
-	HTTP            configHTTPstruct
-	TLS             configTLSStruct
+	Server   configServer
+	Database configDBstruct
+	HTTP     configHTTPstruct
+	HTTPS    configTLSStruct
+}
+
+type configServer struct {
 	BogonAsCallback bool `default:"false"`
+	WorkerCount     int  `default:"8"`
+	RetryTimes      map[uint8]uint
 }
 
 type configDBstruct struct {
@@ -28,18 +34,16 @@ type configDBstruct struct {
 
 //Config for HTTPS
 type configTLSStruct struct {
-	Enabled       bool `default:"false"`
+	Enabled       bool   `default:"false"`
+	ListenAddress string `default:":443"`
 	CertFile      string
 	KeyFile       string
-	ListenAddress string `default:":"`
-	Port          int    `default:"443"`
 }
 
 //Config for HTTP
 type configHTTPstruct struct {
 	Enabled       bool   `default:"true"`
-	ListenAddress string `default:":"`
-	Port          int    `default:"80"`
+	ListenAddress string `default:":80"`
 }
 
 func getDefaultConfig() string {
@@ -54,34 +58,41 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		confFile = getDefaultConfig()
 	}
 
-	if createMode {
-		s, err := os.Stat(confFile)
-		if err == nil {
-			log.Fatalln("This config already exists!")
-			return nil, true
-		}
-		if s != nil && s.IsDir() {
-			log.Fatalln("This name is already taken by a folder")
-			return nil, true
-		}
-		if !strings.HasSuffix(confFile, ".yml") {
-			log.Fatalln("The configFile must end with .yml")
-			return nil, true
+	s, err := os.Stat(confFile)
+	if createMode || err != nil {
+		if createMode {
+			if s != nil && s.IsDir() {
+				log.Fatalln("This name is already taken by a folder")
+				return nil, true
+			}
+			if !strings.HasSuffix(confFile, ".yml") {
+				log.Fatalln("The configFile must end with .yml")
+				return nil, true
+			}
 		}
 		config = ConfigStruct{
+			Server: configServer{
+				BogonAsCallback: false,
+				RetryTimes: map[uint8]uint{
+					0: 1,
+					1: 10,
+					2: 30,
+					3: 60,
+					4: 120,
+					5: 10 * 60,
+				},
+			},
 			Database: configDBstruct{
 				Host:         "localhost",
 				DatabasePort: 3306,
 			},
 			HTTP: configHTTPstruct{
 				Enabled:       true,
-				ListenAddress: "127.0.0.1:",
-				Port:          80,
+				ListenAddress: "127.0.0.1:80",
 			},
-			TLS: configTLSStruct{
+			HTTPS: configTLSStruct{
 				Enabled:       false,
-				ListenAddress: ":",
-				Port:          443,
+				ListenAddress: ":443",
 			},
 		}
 	}
@@ -109,22 +120,22 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 
 //Check check the config file of logical errors
 func (config *ConfigStruct) Check() bool {
-	if !config.HTTP.Enabled && !config.TLS.Enabled {
+	if !config.HTTP.Enabled && !config.HTTPS.Enabled {
 		log.Println("You must at least enable one of the server protocols!")
 		return false
 	}
 
-	if config.TLS.Enabled {
-		if len(config.TLS.CertFile) == 0 || len(config.TLS.KeyFile) == 0 {
+	if config.HTTPS.Enabled {
+		if len(config.HTTPS.CertFile) == 0 || len(config.HTTPS.KeyFile) == 0 {
 			log.Println("If you enable TLS you need to set CertFile and KeyFile!")
 			return false
 		}
 		//Check SSL files
-		if !gaw.FileExists(config.TLS.CertFile) {
+		if !gaw.FileExists(config.HTTPS.CertFile) {
 			log.Println("Can't find the SSL certificate. File not found")
 			return false
 		}
-		if !gaw.FileExists(config.TLS.KeyFile) {
+		if !gaw.FileExists(config.HTTPS.KeyFile) {
 			log.Println("Can't find the SSL key. File not found")
 			return false
 		}
