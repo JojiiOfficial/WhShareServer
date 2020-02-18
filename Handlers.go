@@ -256,7 +256,19 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 }
 
 //-> /source/remove
-func removeSource(w http.ResponseWriter, r *http.Request) {
+func updateSource(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	action := vars["action"]
+	actions := []string{
+		"delete",
+		"changedescr",
+	}
+
+	if !gaw.IsInStringArray(action, actions) {
+		sendError("not available", w, WrongInputFormatError, 501)
+		return
+	}
+
 	var request sourceRequest
 	if !parseUserInput(w, r, &request) {
 		return
@@ -295,13 +307,25 @@ func removeSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = source.delete(db)
+	err = nil
+
+	switch action {
+	case actions[0]:
+		{
+			//delete
+			err = source.delete(db)
+		}
+	case actions[1]:
+		{
+			//rename
+			err = source.updateDescription(db, request.Content)
+		}
+	}
 
 	if err != nil {
 		handleServerError(w, err)
 		return
 	}
-
 	sendResponse(w, ResponseSuccess, "", nil)
 }
 
@@ -498,6 +522,7 @@ func handleError(err error, w http.ResponseWriter, message string, statusCode in
 }
 
 func sendError(erre string, w http.ResponseWriter, message string, statusCode int) {
+	fmt.Println("sendError:", erre)
 	if statusCode >= 500 {
 		log.Println(erre)
 	} else {

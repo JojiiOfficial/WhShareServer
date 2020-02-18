@@ -50,16 +50,16 @@ var routes = Routes{
 
 	//Sources
 	Route{
-		"createSource",
+		"create source",
 		"POST",
 		"/source/create",
 		createSource,
 	},
 	Route{
-		"deleteSource",
+		"update source",
 		"POST",
-		"/source/delete",
-		removeSource,
+		"/source/update/{action}",
+		updateSource,
 	},
 	Route{
 		"listSources",

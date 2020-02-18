@@ -79,6 +79,7 @@ type unsubscribeRequest struct {
 type sourceRequest struct {
 	Token    string `json:"token"`
 	SourceID string `json:"sid,omitempty"`
+	Content  string `json:"content,omitempty"`
 }
 
 type tokenOnlyRequest struct {

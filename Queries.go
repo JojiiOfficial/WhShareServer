@@ -300,6 +300,14 @@ func (webhook *Webhook) insert(db *dbhelper.DBhelper) error {
 	return nil
 }
 
+func (source *Source) updateDescription(db *dbhelper.DBhelper, newText string) error {
+	if newText == "-" {
+		newText = "NULL"
+	}
+	_, err := db.Execf("UPDATE %s SET description=? WHERE pk_id=?", []string{TableSources}, newText, source.PkID)
+	return err
+}
+
 // ----------> Deletes
 
 //Delete source
