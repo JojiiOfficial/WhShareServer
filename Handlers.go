@@ -209,8 +209,12 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if checkInput(w, request, request.Token, request.Content) {
+	if checkInput(w, request, request.Token) {
 		return
+	}
+
+	if request.SourceID == "-" {
+		request.SourceID = ""
 	}
 
 	user, err := getUserIDFromSession(db, request.Token)
