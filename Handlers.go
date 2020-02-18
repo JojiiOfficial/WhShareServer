@@ -262,6 +262,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	actions := []string{
 		"delete",
 		"changedescr",
+		"rename",
 	}
 
 	if !gaw.IsInStringArray(action, actions) {
@@ -317,8 +318,23 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 		}
 	case actions[1]:
 		{
+			//change description
+			err = source.update(db, "description", request.Content, true)
+		}
+	case actions[2]:
+		{
 			//rename
-			err = source.updateDescription(db, request.Content)
+			has, err := user.hasSourceWithName(db, request.Content)
+			if err != nil {
+				handleServerError(w, err)
+				return
+			}
+
+			if has {
+				sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
+				return
+			}
+			err = source.update(db, "name", request.Content)
 		}
 	}
 
@@ -522,7 +538,7 @@ func handleError(err error, w http.ResponseWriter, message string, statusCode in
 }
 
 func sendError(erre string, w http.ResponseWriter, message string, statusCode int) {
-	fmt.Println("sendError:", erre)
+	log.Println("sendError:", erre)
 	if statusCode >= 500 {
 		log.Println(erre)
 	} else {

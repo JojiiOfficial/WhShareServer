@@ -300,11 +300,11 @@ func (webhook *Webhook) insert(db *dbhelper.DBhelper) error {
 	return nil
 }
 
-func (source *Source) updateDescription(db *dbhelper.DBhelper, newText string) error {
-	if newText == "-" {
+func (source *Source) update(db *dbhelper.DBhelper, field, newText string, arg ...bool) error {
+	if newText == "-" && len(arg) > 0 {
 		newText = "NULL"
 	}
-	_, err := db.Execf("UPDATE %s SET description=? WHERE pk_id=?", []string{TableSources}, newText, source.PkID)
+	_, err := db.Execf("UPDATE %s SET %s=? WHERE pk_id=?", []string{TableSources, field}, newText, source.PkID)
 	return err
 }
 
