@@ -5,12 +5,16 @@ const (
 	NotFoundError string = "Not found"
 	//ActionNotAllowed error from server
 	ActionNotAllowed string = "Action not allowed"
+	//WrongLength error from server
+	WrongLength string = "Wrong length"
 	//ServerError error from server
 	ServerError string = "Server Error"
 	//WrongInputFormatError wrong user input
 	WrongInputFormatError string = "Wrong inputFormat!"
 	//InvalidTokenError token is not valid
 	InvalidTokenError string = "Token not valid"
+	//InvalidCallbackURL token is not valid
+	InvalidCallbackURL string = "Callback url is invalid"
 	//BatchSizeTooLarge batch is too large
 	BatchSizeTooLarge string = "BatchSize soo large!"
 	//WrongIntegerFormat integer is probably no integer

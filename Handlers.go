@@ -39,21 +39,37 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	if !parseUserInput(w, r, &request) {
 		return
 	}
+
 	token := request.Token
 	if token == "-" {
 		token = ""
 	}
+
 	if isStructInvalid(request) {
 		sendError("input missing", w, InvalidTokenError, 422)
 		return
 	}
+
+	//Check if token available. return error if not valid, but given.
 	if len(token) > 0 && len(token) != 64 {
 		sendError("token invalid", w, InvalidTokenError, 403)
 		return
 	}
 
+	if len(request.SourceID) != 32 {
+		sendResponse(w, ResponseError, WrongLength, nil, 411)
+		return
+	}
+
+	//Validate callbackURL -> returns error if invalid
+	isReserved, err := gaw.IsReserved(request.CallbackURL)
+	if err != nil {
+		sendResponse(w, ResponseError, InvalidCallbackURL, 406)
+		return
+	}
+
 	//Check if ip is bogon IPs are allowed. If not check IP
-	if !config.Server.BogonAsCallback && gaw.IsReserved(request.CallbackURL) {
+	if !config.Server.BogonAsCallback && isReserved {
 		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
 		return
 	}
@@ -61,7 +77,6 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	//Determine the user
 	userID := uint32(1)
 	var user *User
-	var err error
 	if len(token) > 0 {
 		user, err = getUserIDFromSession(db, token)
 		if err != nil {
@@ -370,11 +385,20 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		sendResponse(w, ResponseError, "404 Not found", nil, 404)
 		return
 	}
-	c := make(chan bool, 1)
+
 	if source.Secret == secret {
+		c := make(chan bool, 1)
 		log.Println("New valid webhook:", source.Name)
 
 		go (func(req *http.Request) {
+			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
+			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
+				log.Printf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
+
+				c <- true
+				return
+			}
+
 			//Read payload body from webhook
 			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
 			if err != nil {
@@ -383,14 +407,6 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			req.Body.Close()
-
-			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
-			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
-				log.Printf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
-
-				c <- true
-				return
-			}
 
 			//Delete in config specified json objects
 			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[ModeToString[source.Mode]], false)

@@ -83,7 +83,7 @@ var routes = Routes{
 	},
 
 	//Webhook
-	//Ending with /
+	//Ending without /
 	Route{
 		"Post webhook",
 		"POST",
@@ -97,7 +97,7 @@ var routes = Routes{
 		webhookHandler,
 	},
 
-	//Ending without /
+	//Ending with /
 	Route{
 		"Post webhook",
 		"POST",
