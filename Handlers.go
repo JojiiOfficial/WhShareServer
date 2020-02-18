@@ -12,6 +12,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const defaultMaxPayloadSize = uint(150)
+
 //Subscriptions ------------------------------
 //-> /sub/remove
 func unsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +49,10 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 	if isStructInvalid(request) {
 		sendError("input missing", w, InvalidTokenError, 422)
+		return
+	}
+
+	if checkPayloadSizes(w, defaultMaxPayloadSize, request.CallbackURL) {
 		return
 	}
 
@@ -151,13 +157,8 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	if !parseUserInput(w, r, &request) {
 		return
 	}
-	if isStructInvalid(request) {
-		sendError("input missing", w, WrongInputFormatError, 422)
-		return
-	}
 
-	if len(request.Token) != 64 {
-		sendError("token invalid", w, InvalidTokenError, 403)
+	if checkInput(w, request, request.Token, request.Name, request.Token) {
 		return
 	}
 
@@ -208,8 +209,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(request.Token) != 64 {
-		sendError("input missing wrong length", w, InvalidTokenError, 422)
+	if checkInput(w, request, request.Token, request.Content) {
 		return
 	}
 
@@ -274,12 +274,8 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	if !parseUserInput(w, r, &request) {
 		return
 	}
-	if isStructInvalid(request) {
-		sendError("input missing", w, WrongInputFormatError, 422)
-		return
-	}
-	if len(request.Token) != 64 {
-		sendError("token invalid", w, InvalidTokenError, 403)
+
+	if checkInput(w, request, request.Token, request.Content) {
 		return
 	}
 
@@ -358,6 +354,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if checkPayloadSizes(w, defaultMaxPayloadSize, request.Username) {
+		return
+	}
+
 	token, success, err := loginQuery(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
 		handleServerError(w, err)
@@ -408,6 +408,32 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sendResponse(w, ResponseSuccess, "", nil)
+}
+
+//Returns true on error
+func checkInput(w http.ResponseWriter, request interface{}, token string, contents ...string) bool {
+	if isStructInvalid(request) {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return true
+	}
+
+	if len(token) != 64 {
+		sendError("token invalid", w, InvalidTokenError, 403)
+		return true
+	}
+
+	return checkPayloadSizes(w, defaultMaxPayloadSize, contents...)
+}
+
+//Returns true on error
+func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...string) bool {
+	for _, content := range contents {
+		if uint(len(content)) > maxPayloadSize-1 {
+			sendResponse(w, ResponseError, "Content too long!", nil, 413)
+			return true
+		}
+	}
+	return false
 }
 
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
