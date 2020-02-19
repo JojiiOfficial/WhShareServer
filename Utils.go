@@ -106,16 +106,22 @@ func isIPv4(inp string) bool {
 
 //Return true if valid
 func isValidCallback(inp string, allowBogon bool, addIPs ...string) (bool, error) {
+	inp = strings.TrimSpace(inp)
 	if !isValidHTTPURL(inp) {
 		return false, nil
 	}
 
-	inp = strings.TrimSpace(inp)
+	u, err := url.Parse(inp)
+	if err != nil {
+		return false, err
+	}
+
+	host := u.Hostname()
 
 	//If inp is an IP
-	if isIPv4(inp) {
+	if isIPv4(host) {
 		//Check for bogon
-		isReserved, err := gaw.IsReserved(inp)
+		isReserved, err := gaw.IsReserved(host)
 		if err != nil || (isReserved && !allowBogon) {
 			return false, err
 		}
@@ -126,7 +132,7 @@ func isValidCallback(inp string, allowBogon bool, addIPs ...string) (bool, error
 			if len(addIP) == 0 {
 				continue
 			}
-			if strings.TrimSpace(addIP) == inp {
+			if strings.TrimSpace(addIP) == host {
 				return false, nil
 			}
 		}
@@ -135,13 +141,8 @@ func isValidCallback(inp string, allowBogon bool, addIPs ...string) (bool, error
 		return true, nil
 	}
 
-	u, err := url.Parse(inp)
-	if err != nil {
-		return false, err
-	}
-
 	//If host, do DNS lookup
-	ips, err := net.LookupHost(u.Hostname())
+	ips, err := net.LookupHost(host)
 	if err != nil {
 		//If server can't lookup the host, then the host is not valid
 		return false, nil
@@ -175,12 +176,7 @@ func isValidCallback(inp string, allowBogon bool, addIPs ...string) (bool, error
 var AllowedSchemes = []string{"http", "https"}
 
 func isValidHTTPURL(inp string) bool {
-	//Allow raw IPs
-	if isIPv4(inp) {
-		return true
-	}
-
-	//If not an IP, check for a valid URL
+	//check for valid URL
 	u, err := url.Parse(inp)
 	if err != nil {
 		return false
