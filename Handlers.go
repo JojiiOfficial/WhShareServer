@@ -464,7 +464,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		go (func(req *http.Request) {
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
 			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
-				log.Warn("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
+				log.Warnf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
 
 				c <- true
 				return

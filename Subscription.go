@@ -30,7 +30,7 @@ func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source
 	}
 
 	if len(subscriptions) > 0 {
-		log.Debug("Starting pool for %d subscriber\n", len(subscriptions))
+		log.Debugf("Starting pool for %d subscriber\n", len(subscriptions))
 
 		go (func() {
 			startPool(db, webhook, source, subscriptions)

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -9,11 +11,11 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "0.19.4a"
+const version = "0.20.0a"
 
 var (
 	app         = kingpin.New("server", "A Rest server")
-	appLogLevel = app.Flag("log-level", "Enable debug mode").HintOptions(LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').String()
+	appLogLevel = app.Flag("log-level", "Enable debug mode").HintOptions(LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').Default(LogLevels[2]).String()
 	appNoColor  = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
 	appYes      = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
 	appCfgFile  = app.
@@ -64,7 +66,18 @@ func main() {
 			log.Fatalln(err.Error())
 			return
 		}
+
 	}
+
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: false,
+		TimestampFormat:  time.Stamp,
+		FullTimestamp:    true,
+		ForceColors:      true,
+	})
+
+	log.Infof("LogLevel: %s\n", *appLogLevel)
 
 	//set app logLevel
 	switch *appLogLevel {
@@ -80,6 +93,10 @@ func main() {
 	case LogLevels[3]:
 		//Error
 		log.SetLevel(log.ErrorLevel)
+	default:
+		fmt.Println("LogLevel not found!")
+		os.Exit(1)
+		return
 	}
 
 	switch parsed {

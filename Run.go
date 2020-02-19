@@ -38,13 +38,13 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 
 	if config.Webserver.HTTPS.Enabled {
 		go (func() {
-			log.Info("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
+			log.Infof("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
 			log.Fatal(http.ListenAndServeTLS(config.Webserver.HTTPS.ListenAddress, config.Webserver.HTTPS.CertFile, config.Webserver.HTTPS.KeyFile, router))
 		})()
 	}
 	if config.Webserver.HTTP.Enabled {
 		go (func() {
-			log.Info("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
+			log.Infof("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
 			log.Fatal(http.ListenAndServe(config.Webserver.HTTP.ListenAddress, router))
 		})()
 	}

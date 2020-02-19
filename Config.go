@@ -181,8 +181,8 @@ func (config *ConfigStruct) LoadInfo() {
 		gl = len(d)
 	}
 
-	log.Info("Blacklist: (%dx docker, %dx github, %dx gitlab) JSONObjects to block\n", docker, gh, gl)
-	log.Info("Blocking header values: %d\n", len(config.Server.WebhookBlacklist.HeaderValues))
+	log.Infof("Blacklist: (%dx docker, %dx github, %dx gitlab) JSONObjects to block\n", docker, gh, gl)
+	log.Infof("Blocking header values: %d\n", len(config.Server.WebhookBlacklist.HeaderValues))
 }
 
 //Check check the config file of logical errors
@@ -209,7 +209,7 @@ func (config *ConfigStruct) Check() bool {
 	}
 
 	if config.Server.Database.DatabasePort < 1 || config.Server.Database.DatabasePort > 65535 {
-		log.Error("Invalid port for database %d\n", config.Server.Database.DatabasePort)
+		log.Errorf("Invalid port for database %d\n", config.Server.Database.DatabasePort)
 		return false
 	}
 
