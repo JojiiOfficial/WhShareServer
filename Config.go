@@ -8,7 +8,7 @@ import (
 	"time"
 
 	gaw "github.com/JojiiOfficial/GoAw"
-	"github.com/JojiiOfficial/configor"
+	"github.com/JojiiOfficial/configService"
 )
 
 //ConfigStruct config for the server
@@ -139,7 +139,7 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		}
 	}
 
-	isDefault, err := configor.SetupConfig(&config, confFile, configor.NoChange)
+	isDefault, err := configService.SetupConfig(&config, confFile, configService.NoChange)
 	if err != nil {
 		log.Fatalln(err.Error())
 		return nil, true
@@ -152,7 +152,7 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		}
 	}
 
-	if err = configor.Load(&config, confFile); err != nil {
+	if err = configService.Load(&config, confFile); err != nil {
 		log.Fatalln(err.Error())
 		return nil, true
 	}
