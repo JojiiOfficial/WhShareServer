@@ -38,7 +38,7 @@ var routes = Routes{
 	Route{
 		"login",
 		"POST",
-		"/login",
+		"/user/login",
 		login,
 	},
 	Route{

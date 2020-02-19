@@ -11,7 +11,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "0.20.0a"
+const version = "0.20.1a"
 
 var (
 	app         = kingpin.New("server", "A Rest server")
@@ -48,6 +48,14 @@ func main() {
 	//parsing the args
 	parsed := kingpin.MustParse(app.Parse(os.Args[1:]))
 
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: false,
+		TimestampFormat:  time.Stamp,
+		FullTimestamp:    true,
+		ForceColors:      true,
+	})
+
 	if parsed != configCmdCreate.FullCommand() {
 		var shouldExit bool
 		config, shouldExit = InitConfig(*appCfgFile, false)
@@ -68,14 +76,6 @@ func main() {
 		}
 
 	}
-
-	log.SetOutput(os.Stdout)
-	log.SetFormatter(&log.TextFormatter{
-		DisableTimestamp: false,
-		TimestampFormat:  time.Stamp,
-		FullTimestamp:    true,
-		ForceColors:      true,
-	})
 
 	log.Infof("LogLevel: %s\n", *appLogLevel)
 

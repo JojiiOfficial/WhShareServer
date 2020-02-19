@@ -30,7 +30,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	err := removeSubscription(db, request.SubscriptionID)
 	if err != nil {
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 	sendResponse(w, ResponseSuccess, "", nil)
@@ -108,14 +108,14 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	if userID > 1 {
 		is, err := user.isSubscribedTo(db, source.PkID)
 		if err != nil {
-			sendServerError(w, err)
+			sendServerError(w)
 			return
 		}
 		isSubscribed = is
 	} else {
 		ex, err := checkSubscriptionExitsts(db, source.PkID, request.CallbackURL)
 		if err != nil {
-			sendServerError(w, err)
+			sendServerError(w)
 			return
 		}
 		isSubscribed = ex
@@ -135,7 +135,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 		err := subs.insert(db)
 		if err != nil {
-			sendServerError(w, err)
+			sendServerError(w)
 			return
 		}
 
@@ -172,7 +172,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	nameExitst, err := user.hasSourceWithName(db, request.Name)
 	if err != nil {
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 
@@ -191,7 +191,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	err = source.insert(db)
 	if err != nil {
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 
@@ -228,7 +228,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	if len(request.SourceID) == 0 {
 		sources, err := getSourcesForUser(db, user.Pkid)
 		if err != nil {
-			sendServerError(w, err)
+			sendServerError(w)
 			return
 		}
 
@@ -239,7 +239,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	} else {
 		source, err := getSourceFromSourceID(db, request.SourceID)
 		if err != nil {
-			sendServerError(w, err)
+			sendServerError(w)
 			return
 		}
 		if user.Pkid != source.CreatorID {
@@ -259,7 +259,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, ResponseSuccess, "", response)
 }
 
-//-> /source/remove
+//-> /source/update/{action}
 func updateSource(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	action := vars["action"]
@@ -267,6 +267,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 		"delete",
 		"changedescr",
 		"rename",
+		"toggleAccess",
 	}
 
 	if !gaw.IsInStringArray(action, actions) {
@@ -299,7 +300,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//Real db error
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 
@@ -309,7 +310,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = nil
-
+	message := ""
 	switch action {
 	case actions[0]:
 		{
@@ -326,7 +327,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 			//rename
 			has, err := user.hasSourceWithName(db, request.Content)
 			if err != nil {
-				sendServerError(w, err)
+				sendServerError(w)
 				return
 			}
 
@@ -336,17 +337,28 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 			}
 			err = source.update(db, "name", request.Content)
 		}
+	case actions[3]:
+		{
+			//Toggle accessMode
+			newVal := "1"
+			message = "private"
+			if source.IsPrivate {
+				newVal = "0"
+				message = "public"
+			}
+			err = source.update(db, "private", newVal)
+		}
 	}
 
 	if err != nil {
-		sendServerError(w, err)
-		return
+		sendServerError(w)
+	} else {
+		sendResponse(w, ResponseSuccess, message, nil)
 	}
-	sendResponse(w, ResponseSuccess, "", nil)
 }
 
 //User functions ------------------------------
-//-> /login
+//-> /user/login
 func login(w http.ResponseWriter, r *http.Request) {
 	var request credentialRequest
 
@@ -364,7 +376,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	token, success, err := loginQuery(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 
@@ -377,6 +389,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//-> /user/create
 func register(w http.ResponseWriter, r *http.Request) {
 	if !config.Server.AllowRegistration {
 		sendResponse(w, ResponseError, "Server doesn't accept registrations", nil, 403)
@@ -396,7 +409,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 
 	exists, err := userExitst(db, request.Username)
 	if err != nil {
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 
@@ -407,7 +420,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 
 	err = insertUser(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
-		sendServerError(w, err)
+		sendServerError(w)
 		return
 	}
 
@@ -563,6 +576,6 @@ func sendError(erre string, w http.ResponseWriter, message string, statusCode in
 	sendResponse(w, ResponseError, message, nil, statusCode)
 }
 
-func sendServerError(w http.ResponseWriter, err error) {
+func sendServerError(w http.ResponseWriter) {
 	sendError("internal server error", w, ServerError, 500)
 }
