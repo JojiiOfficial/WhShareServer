@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/thecodeteam/goodbye"
@@ -15,11 +16,11 @@ var (
 	retryService *RetryService
 )
 
-func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
-	log.Println("Starting version " + version)
+func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
+	log.Info("Starting version " + version)
 
 	if config.Server.BogonAsCallback {
-		log.Println("Allowing bogon as callbackURL!")
+		log.Info("Allowing bogon as callbackURL!")
 	}
 
 	ctx := initExitCallback(dab)
@@ -28,19 +29,22 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper, debug bool) {
 	router := NewRouter()
 	db = dab
 
+	db.SetErrHook(func(err error, query, prefix string) {
+		log.Error(prefix + query)
+	}, dbhelper.ErrHookOptions{
+		Prefix:         "In query: ",
+		ReturnNilOnErr: false,
+	})
+
 	if config.Webserver.HTTPS.Enabled {
 		go (func() {
-			if debug {
-				log.Printf("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
-			}
+			log.Info("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
 			log.Fatal(http.ListenAndServeTLS(config.Webserver.HTTPS.ListenAddress, config.Webserver.HTTPS.CertFile, config.Webserver.HTTPS.KeyFile, router))
 		})()
 	}
 	if config.Webserver.HTTP.Enabled {
 		go (func() {
-			if debug {
-				log.Printf("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
-			}
+			log.Info("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
 			log.Fatal(http.ListenAndServe(config.Webserver.HTTP.ListenAddress, router))
 		})()
 	}
@@ -61,8 +65,9 @@ func initExitCallback(db *dbhelper.DBhelper) context.Context {
 	goodbye.Notify(ctx)
 	goodbye.Register(func(ctx context.Context, sig os.Signal) {
 		if db.DB != nil {
-			db.DB.Close()
-			log.Println("DB closed")
+			if !LogError(db.DB.Close()) {
+				log.Info("DB closed")
+			}
 		}
 	})
 	return ctx
@@ -70,9 +75,7 @@ func initExitCallback(db *dbhelper.DBhelper) context.Context {
 
 //A goroutine which deletes every hour unused webhooks
 func startWebhookCleaner(dba *dbhelper.DBhelper) {
-	if *appDebug {
-		log.Println("Start cleaner")
-	}
+	log.Info("Start cleaner")
 	go (func(db *dbhelper.DBhelper) {
 		for {
 			deleteOldHooks(db)

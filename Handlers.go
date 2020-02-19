@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 
+	log "github.com/sirupsen/logrus"
+
 	gaw "github.com/JojiiOfficial/GoAw"
+	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/gorilla/mux"
 )
 
@@ -25,9 +27,10 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		sendError("input missing wrong length", w, WrongInputFormatError, 422)
 		return
 	}
+
 	err := removeSubscription(db, request.SubscriptionID)
 	if err != nil {
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 	sendResponse(w, ResponseSuccess, "", nil)
@@ -86,7 +89,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	if len(token) > 0 {
 		user, err = getUserIDFromSession(db, token)
 		if err != nil {
-			log.Println(err.Error())
+			log.Error(err)
 			userID = 1
 		} else {
 			userID = user.Pkid
@@ -98,7 +101,6 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
 		sendError("input missing", w, NotFoundError, 422)
-		log.Println(err.Error())
 		return
 	}
 
@@ -106,14 +108,14 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	if userID > 1 {
 		is, err := user.isSubscribedTo(db, source.PkID)
 		if err != nil {
-			handleServerError(w, err)
+			sendServerError(w, err)
 			return
 		}
 		isSubscribed = is
 	} else {
 		ex, err := checkSubscriptionExitsts(db, source.PkID, request.CallbackURL)
 		if err != nil {
-			handleServerError(w, err)
+			sendServerError(w, err)
 			return
 		}
 		isSubscribed = ex
@@ -133,8 +135,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 		err := subs.insert(db)
 		if err != nil {
-			log.Println(err.Error())
-			handleServerError(w, err)
+			sendServerError(w, err)
 			return
 		}
 
@@ -171,7 +172,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	nameExitst, err := user.hasSourceWithName(db, request.Name)
 	if err != nil {
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 
@@ -190,8 +191,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	err = source.insert(db)
 	if err != nil {
-		log.Print(err.Error())
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 
@@ -228,7 +228,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	if len(request.SourceID) == 0 {
 		sources, err := getSourcesForUser(db, user.Pkid)
 		if err != nil {
-			handleServerError(w, err)
+			sendServerError(w, err)
 			return
 		}
 
@@ -239,7 +239,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 	} else {
 		source, err := getSourceFromSourceID(db, request.SourceID)
 		if err != nil {
-			handleServerError(w, err)
+			sendServerError(w, err)
 			return
 		}
 		if user.Pkid != source.CreatorID {
@@ -293,13 +293,13 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
-		if err.Error() == ErrorNoRowsInResultSet {
+		if err.Error() == dbhelper.ErrNoRowsInResultSet {
 			//Source just not found if no rows in result set
 			sendResponse(w, ResponseError, NotFoundError, nil, 404)
 			return
 		}
 		//Real db error
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 
@@ -326,7 +326,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 			//rename
 			has, err := user.hasSourceWithName(db, request.Content)
 			if err != nil {
-				handleServerError(w, err)
+				sendServerError(w, err)
 				return
 			}
 
@@ -339,7 +339,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 	sendResponse(w, ResponseSuccess, "", nil)
@@ -364,7 +364,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	token, success, err := loginQuery(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 
@@ -396,7 +396,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 
 	exists, err := userExitst(db, request.Username)
 	if err != nil {
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 
@@ -407,7 +407,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 
 	err = insertUser(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
-		handleServerError(w, err)
+		sendServerError(w, err)
 		return
 	}
 
@@ -446,24 +446,25 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	secret := vars["secret"]
 
 	if len(sourceID) == 0 || len(secret) == 0 {
-		log.Println("source or secret is not given in webhook!")
+		log.Info("source or secret is not given in webhook!")
 		return
 	}
 
 	source, err := getSourceFromSourceID(db, sourceID)
 	if err != nil {
+		log.Info("webhookHandler - Source not found")
 		sendResponse(w, ResponseError, "404 Not found", nil, 404)
 		return
 	}
 
 	if source.Secret == secret {
 		c := make(chan bool, 1)
-		log.Println("New valid webhook:", source.Name)
+		log.Info("New valid webhook:", source.Name)
 
 		go (func(req *http.Request) {
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
 			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
-				log.Printf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
+				log.Warn("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
 
 				c <- true
 				return
@@ -472,7 +473,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			//Read payload body from webhook
 			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
 			if err != nil {
-				log.Println("ReadError: " + err.Error())
+				LogError(err)
 				c <- false
 				return
 			}
@@ -481,8 +482,9 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			//Delete in config specified json objects
 			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[ModeToString[source.Mode]], false)
 			if err != nil {
-				log.Println("Error filtering JSON!")
-				log.Println(err.Error())
+				LogError(err, log.Fields{
+					"msg": "Error filtering JSON!",
+				})
 
 				c <- true
 				return
@@ -508,11 +510,11 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		log.Println("invalid secret for source", sourceID)
+		log.Warn("invalid secret for source", sourceID)
 	}
 }
 
-func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) error {
+func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) {
 	statusCode := http.StatusOK
 	s := "0"
 	if status == 1 {
@@ -528,39 +530,29 @@ func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, 
 		w.WriteHeader(statusCode)
 	}
 
-	toSend := "error"
+	var err error
 	if payload != nil {
-		b, err := json.Marshal(payload)
-		if err != nil {
-			log.Println(err.Error())
-			return err
-		}
-		toSend = string(b)
+		err = json.NewEncoder(w).Encode(payload)
 	} else if len(message) > 0 {
-		toSend = message
+		_, err = fmt.Fprintln(w, message)
 	}
 
-	_, err := fmt.Fprintln(w, toSend)
-	return err
+	LogError(err)
 }
 
-//rest functions
+//parseUserInput tries to read the body and parse it into p. Returns true on success
 func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 100000))
-	if err != nil {
-		log.Println("ReadError: " + err.Error())
-		return false
-	}
-	if err := r.Body.Close(); err != nil {
-		log.Println("ReadError: " + err.Error())
+
+	if LogError(err) || LogError(r.Body.Close()) {
 		return false
 	}
 
-	return !handleError(json.Unmarshal(body, p), w, WrongInputFormatError, 422)
+	return !handleAndSendError(json.Unmarshal(body, p), w, WrongInputFormatError, 422)
 }
 
-func handleError(err error, w http.ResponseWriter, message string, statusCode int) bool {
-	if err == nil {
+func handleAndSendError(err error, w http.ResponseWriter, message string, statusCode int) bool {
+	if !LogError(err) {
 		return false
 	}
 	sendError(err.Error(), w, message, statusCode)
@@ -568,18 +560,9 @@ func handleError(err error, w http.ResponseWriter, message string, statusCode in
 }
 
 func sendError(erre string, w http.ResponseWriter, message string, statusCode int) {
-	log.Println("sendError:", erre)
-	if statusCode >= 500 {
-		log.Println(erre)
-	} else {
-		log.Println(erre)
-	}
 	sendResponse(w, ResponseError, message, nil, statusCode)
 }
 
-func handleServerError(w http.ResponseWriter, err error) {
+func sendServerError(w http.ResponseWriter, err error) {
 	sendError("internal server error", w, ServerError, 500)
-	if err != nil {
-		log.Println(err.Error())
-	}
 }

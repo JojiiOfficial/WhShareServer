@@ -1,12 +1,13 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 )
@@ -64,9 +65,23 @@ func isHeaderBlocklistetd(headers http.Header, blocklist *map[string][]string) b
 
 	dur := time.Now().Sub(start)
 	//Print only if 'critical'
-	if dur > 1*time.Second {
-		log.Printf("Header checking took %s\n", dur.String())
+	if dur >= 1*time.Second {
+		log.Warnf("Header checking took %s\n", dur.String())
 	}
 
 	return false
+}
+
+//LogError returns true on error
+func LogError(err error, context ...map[string]interface{}) bool {
+	if err == nil {
+		return false
+	}
+
+	if len(context) > 0 {
+		log.WithFields(context[0]).Error(err.Error())
+	} else {
+		log.Error(err.Error())
+	}
+	return true
 }

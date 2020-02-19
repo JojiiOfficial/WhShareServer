@@ -1,15 +1,16 @@
 package main
 
 import (
-	"log"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
-	log.Println("Connecting to DB")
+	log.Debug("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
 		config.Server.Database.Username,
 		config.Server.Database.Pass,
@@ -20,8 +21,11 @@ func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("Connected successfully")
-	db.Options.Debug = *appDebug
+	log.Info("Connected successfully")
+
+	//Only debugMode if logLevel is debug
+	db.Options.Debug = *appLogLevel == LogLevels[0]
+
 	db.Options.UseColors = !(*appNoColor)
 	return db, updateDB(db)
 }

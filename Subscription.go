@@ -1,13 +1,13 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	log "github.com/sirupsen/logrus"
 )
 
 //Subscription the subscription a user made
@@ -25,19 +25,18 @@ type Subscription struct {
 //Notify all subscriber for a given webhook
 func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
 	subscriptions, err := getSubscriptionsForSource(db, source.PkID)
-	if err != nil {
-		log.Println(err.Error())
+	if LogError(err) {
 		return
 	}
 
 	if len(subscriptions) > 0 {
-		log.Printf("Starting pool for %d subscriber\n", len(subscriptions))
+		log.Debug("Starting pool for %d subscriber\n", len(subscriptions))
 
 		go (func() {
 			startPool(db, webhook, source, subscriptions)
 		})()
 	} else {
-		log.Println("No subscriber found!")
+		log.Info("No subscriber found!")
 	}
 }
 
@@ -81,23 +80,17 @@ func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 
 	//Do the request
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Println(err.Error())
-	}
+	LogError(err)
 
 	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
 		retryService.add(subscription.PkID, source.PkID, webhook.PkID)
 	} else if resp.StatusCode == http.StatusTeapot {
 		//Unsubscribe
-		err := removeSubscription(db, subscription.SubscriptionID)
-		if err != nil {
-			log.Println(err.Error())
-		}
+		LogError(removeSubscription(db, subscription.SubscriptionID))
 	} else {
 		//Successful notification
 		retryService.remove(subscription.PkID)
-		log.Println("Removing subscription from retryQueue. Reason: successful notification")
-
+		log.Debug("Removing subscription from retryQueue. Reason: successful notification")
 		if !subscription.IsValid {
 			subscription.triggerAndValidate(db)
 		} else {

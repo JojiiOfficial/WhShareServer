@@ -41,3 +41,13 @@ const (
 	//EPPingClient endpoint for pinging the client
 	EPPingClient = "ping"
 )
+
+//LogLevels
+var (
+	LogLevels = []string{
+		"debug",
+		"info",
+		"warning",
+		"error",
+	}
+)

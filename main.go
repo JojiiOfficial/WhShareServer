@@ -1,8 +1,9 @@
 package main
 
 import (
-	"log"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -11,11 +12,11 @@ import (
 const version = "0.19.4a"
 
 var (
-	app        = kingpin.New("server", "A Rest server")
-	appDebug   = app.Flag("debug", "Enable debug mode").Envar(getEnVar(EnVarDebug)).Short('d').Bool()
-	appNoColor = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
-	appYes     = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
-	appCfgFile = app.
+	app         = kingpin.New("server", "A Rest server")
+	appLogLevel = app.Flag("log-level", "Enable debug mode").HintOptions(LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').String()
+	appNoColor  = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
+	appYes      = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
+	appCfgFile  = app.
 			Flag("config", "the configuration file for the subscriber").
 			Envar(getEnVar(EnVarConfigFile)).
 			Short('c').String()
@@ -53,9 +54,7 @@ func main() {
 		}
 
 		if !config.Check() {
-			if *appDebug {
-				log.Println("Exiting")
-			}
+			log.Info("Exiting")
 			return
 		}
 
@@ -67,11 +66,27 @@ func main() {
 		}
 	}
 
+	//set app logLevel
+	switch *appLogLevel {
+	case LogLevels[0]:
+		//Debug
+		log.SetLevel(log.DebugLevel)
+	case LogLevels[1]:
+		//Info
+		log.SetLevel(log.InfoLevel)
+	case LogLevels[2]:
+		//Warning
+		log.SetLevel(log.WarnLevel)
+	case LogLevels[3]:
+		//Error
+		log.SetLevel(log.ErrorLevel)
+	}
+
 	switch parsed {
 	//Server --------------------
 	case serverCmdStart.FullCommand():
 		{
-			runCmd(config, db, *appDebug)
+			runCmd(config, db)
 		}
 	//Config --------------------
 	case configCmdCreate.FullCommand():

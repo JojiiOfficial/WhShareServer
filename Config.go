@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 	"github.com/JojiiOfficial/configService"
@@ -180,35 +181,35 @@ func (config *ConfigStruct) LoadInfo() {
 		gl = len(d)
 	}
 
-	log.Printf("Blacklist: (%dx docker, %dx github, %dx gitlab) JSONObjects to block\n", docker, gh, gl)
-	log.Printf("Header values: %d\n", len(config.Server.WebhookBlacklist.HeaderValues))
+	log.Info("Blacklist: (%dx docker, %dx github, %dx gitlab) JSONObjects to block\n", docker, gh, gl)
+	log.Info("Blocking header values: %d\n", len(config.Server.WebhookBlacklist.HeaderValues))
 }
 
 //Check check the config file of logical errors
 func (config *ConfigStruct) Check() bool {
 	if !config.Webserver.HTTP.Enabled && !config.Webserver.HTTPS.Enabled {
-		log.Println("You must at least enable one of the server protocols!")
+		log.Error("You must at least enable one of the server protocols!")
 		return false
 	}
 
 	if config.Webserver.HTTPS.Enabled {
 		if len(config.Webserver.HTTPS.CertFile) == 0 || len(config.Webserver.HTTPS.KeyFile) == 0 {
-			log.Println("If you enable TLS you need to set CertFile and KeyFile!")
+			log.Error("If you enable TLS you need to set CertFile and KeyFile!")
 			return false
 		}
 		//Check SSL files
 		if !gaw.FileExists(config.Webserver.HTTPS.CertFile) {
-			log.Println("Can't find the SSL certificate. File not found")
+			log.Error("Can't find the SSL certificate. File not found")
 			return false
 		}
 		if !gaw.FileExists(config.Webserver.HTTPS.KeyFile) {
-			log.Println("Can't find the SSL key. File not found")
+			log.Error("Can't find the SSL key. File not found")
 			return false
 		}
 	}
 
 	if config.Server.Database.DatabasePort < 1 || config.Server.Database.DatabasePort > 65535 {
-		log.Printf("Invalid port for database %d\n", config.Server.Database.DatabasePort)
+		log.Error("Invalid port for database %d\n", config.Server.Database.DatabasePort)
 		return false
 	}
 

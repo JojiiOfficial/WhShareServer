@@ -1,10 +1,9 @@
 package main
 
 import (
-	"log"
-
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	log "github.com/sirupsen/logrus"
 )
 
 //Tables
@@ -105,8 +104,7 @@ func loginQuery(db *dbhelper.DBhelper, username, password, ip string) (string, b
 	}
 
 	err = session.insert(db)
-	if err != nil {
-		log.Println(err.Error())
+	if LogError(err) {
 		return "", false, err
 	}
 
@@ -224,9 +222,9 @@ func (user *User) hasSourceWithName(db *dbhelper.DBhelper, name string) (bool, e
 func deleteOldHooks(db *dbhelper.DBhelper) {
 	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})
 	if err != nil {
-		log.Println(err.Error())
+		LogError(err)
 	}
-	log.Println("Webhook cleanup done")
+	log.Info("Webhook cleanup done")
 }
 
 // ----------> Updates

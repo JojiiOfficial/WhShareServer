@@ -1,9 +1,10 @@
 package main
 
 import (
-	"log"
 	"reflect"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ------------- Database structs ----------------
@@ -145,7 +146,7 @@ func hasEmptyValue(e reflect.Value) bool {
 			return false
 		}
 	default:
-		log.Println(e.Type().Kind(), e)
+		log.Error(e.Type().Kind(), e)
 		return true
 	}
 	return false

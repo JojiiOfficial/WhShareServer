@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"time"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	log "github.com/sirupsen/logrus"
 )
 
 //RetryService handles retries
@@ -55,7 +55,7 @@ func (retryService *RetryService) add(subscriptionPK, sourcePK, WebhookPK uint32
 	retryService.calcNextRetryTime(retry)
 	retryService.RetryList[subscriptionPK] = retry
 
-	log.Println("add new retry to list. Next retry:", retry.NextRetry.Format(time.Stamp))
+	log.Debug("Add new retry to list. Next retry:", retry.NextRetry.Format(time.Stamp))
 }
 
 func (retryService *RetryService) remove(subscriptionPK uint32) {
@@ -69,7 +69,7 @@ func (retryService *RetryService) handle() {
 		//If retry time is come
 		if retry.NextRetry.Unix() <= time.Now().Unix() {
 			if retry.TryNr >= uint8(len(retryService.RetryTimes)) {
-				log.Println("Removing subscription. Reason: too many retries")
+				log.Info("Removing subscription. Reason: too many retries")
 
 				retryService.remove(subsPK)
 				err := removeSubscriptionByPK(retryService.db, subsPK)
@@ -88,21 +88,21 @@ func (retryService *RetryService) handle() {
 func (retry *Retry) do(subsPK uint32) {
 	subscription, err := getSubscriptionFromPK(retryService.db, subsPK)
 	if err != nil {
-		log.Println("getSubsFromPK", err.Error())
+		log.Error("getSubsFromPK", err.Error())
 		return
 	}
 	source, err := getSourceFromPK(retryService.db, retry.SourcePK)
 	if err != nil {
-		log.Println("getSourceFromPK", err.Error())
+		log.Error("getSourceFromPK", err.Error())
 		return
 	}
 	webhook, err := getWebhookFromPK(retryService.db, retry.WebhookPK)
 	if err != nil {
-		log.Println("getWebhookFromPK", err.Error())
+		log.Error("getWebhookFromPK", err.Error())
 		return
 	}
 
-	log.Printf("Doing retry")
+	log.Debug("Doing retry")
 
 	go subscription.Notify(webhook, source)
 }
