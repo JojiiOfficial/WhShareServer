@@ -174,6 +174,15 @@ func getSubscriptionsForSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscr
 	return subscriptions, err
 }
 
+func getSubscriptionFromSubsID(db *dbhelper.DBhelper, subscriptionID string) (*Subscription, error) {
+	var subscription Subscription
+	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+	if err != nil {
+		return nil, err
+	}
+	return &subscription, nil
+}
+
 func getSubscriptionFromPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, error) {
 	var subscription Subscription
 	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pkID)
@@ -236,6 +245,11 @@ func (sub *Subscription) triggerAndValidate(db *dbhelper.DBhelper) error {
 
 func (sub *Subscription) trigger(db *dbhelper.DBhelper) {
 	db.Execf("UPDATE %s SET lastTrigger=now() WHERE pk_id=?", []string{TableSubscriptions}, sub.PkID)
+}
+
+func (sub *Subscription) updateCallback(db *dbhelper.DBhelper, newCallback string) error {
+	_, err := db.Execf("UPDATE %s SET callbackURL=? WHERE subscriptionID=?", []string{TableSubscriptions}, newCallback, sub.SubscriptionID)
+	return err
 }
 
 // -----------> Inserts

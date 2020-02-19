@@ -70,11 +70,17 @@ type sourceAddRequest struct {
 type subscriptionRequest struct {
 	Token       string `json:"token"`
 	SourceID    string `json:"sid"`
-	CallbackURL string `json:"cburl"`
+	CallbackURL string `json:"cbUrl"`
 }
 
 type unsubscribeRequest struct {
 	SubscriptionID string `json:"sid"`
+}
+
+type subscriptionUpdateCallbackRequest struct {
+	Token          string `json:"token"`
+	SubscriptionID string `json:"subID"`
+	CallbackURL    string `json:"cbUrl"`
 }
 
 type sourceRequest struct {

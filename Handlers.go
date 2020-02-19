@@ -37,6 +37,78 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+//-> /sub/updateCallbackURL
+func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
+	var request subscriptionUpdateCallbackRequest
+	if !parseUserInput(w, r, &request) {
+		return
+	}
+
+	token := request.Token
+	if token == "-" {
+		token = ""
+	}
+
+	//Check if token available. return error if not valid, but given.
+	if len(token) > 0 && len(token) != 64 {
+		sendError("token invalid", w, InvalidTokenError, 403)
+		return
+	}
+
+	if len(request.SubscriptionID) != 32 {
+		sendResponse(w, ResponseError, "Invalid subscriptionID length!", nil, 411)
+		return
+	}
+
+	if checkPayloadSizes(w, defaultMaxPayloadSize, request.CallbackURL) {
+		return
+	}
+
+	//Validate callbackURL -> returns error if invalid
+	isReserved, err := gaw.IsReserved(request.CallbackURL)
+	if err != nil {
+		sendResponse(w, ResponseError, InvalidCallbackURL, 406)
+		return
+	}
+
+	//Check if ip is bogon IPs are allowed. If not check IP
+	if !config.Server.BogonAsCallback && isReserved {
+		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
+		return
+	}
+
+	//Determine the user
+	userID := uint32(1)
+	if len(token) > 0 {
+		user, err := getUserIDFromSession(db, token)
+		if err != nil {
+			LogError(err)
+			userID = 1
+		} else {
+			userID = user.Pkid
+			user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+		}
+	}
+
+	subscription, err := getSubscriptionFromSubsID(db, request.SubscriptionID)
+	if err != nil {
+		sendServerError(w)
+		return
+	}
+
+	//Update only if it's users source or user not logged in and sourceID matches
+	if (userID > 1 && subscription.UserID == userID) || subscription.UserID == 1 {
+		err = subscription.updateCallback(db, request.CallbackURL)
+		if err != nil {
+			sendServerError(w)
+		} else {
+			sendResponse(w, ResponseSuccess, "", nil)
+		}
+	} else {
+		sendResponse(w, ResponseError, ActionNotAllowed, nil)
+	}
+}
+
 //-> /sub/add
 func subscribe(w http.ResponseWriter, r *http.Request) {
 	var request subscriptionRequest
@@ -159,7 +231,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if checkInput(w, request, request.Token, request.Name, request.Token) {
+	if checkInput(w, request, request.Token, request.Name) {
 		return
 	}
 
@@ -427,6 +499,8 @@ func register(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, ResponseSuccess, "", nil)
 }
 
+// ------------------------ REST Helper functions -----------------------
+
 //Returns true on error
 func checkInput(w http.ResponseWriter, request interface{}, token string, contents ...string) bool {
 	if isStructInvalid(request) {
@@ -555,7 +629,7 @@ func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, 
 
 //parseUserInput tries to read the body and parse it into p. Returns true on success
 func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 100000))
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 10000))
 
 	if LogError(err) || LogError(r.Body.Close()) {
 		return false

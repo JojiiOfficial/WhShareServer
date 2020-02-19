@@ -81,6 +81,12 @@ var routes = Routes{
 		"/sub/remove",
 		unsubscribe,
 	},
+	Route{
+		"update callback",
+		"POST",
+		"/sub/updateCallback",
+		updateCallbackURL,
+	},
 
 	//Webhook
 	//Ending without /
