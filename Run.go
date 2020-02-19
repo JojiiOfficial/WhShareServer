@@ -14,6 +14,7 @@ import (
 
 var (
 	retryService *RetryService
+	currIP       string
 )
 
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
@@ -49,13 +50,32 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 		})()
 	}
 
+	c := make(chan string, 1)
+	go (func() {
+		c <- getOwnIP()
+	})()
+
 	retryService = NewRetryService(db, config)
 	retryService.start()
 
 	startWebhookCleaner(db)
 
+	currIP = <-c
+	if !isIPv4(currIP) {
+		log.Fatalf("Error validating IP address! '%s' Exiting\n", currIP)
+	} else {
+		log.Debugf("Servers IP address is '%s'\n", currIP)
+	}
+
 	for {
 		time.Sleep(time.Hour)
+
+		//Update IP address every hour
+		cip := getOwnIP()
+		if cip != currIP && isIPv4(cip) {
+			log.Infof("Server got new IP address %s\n", cip)
+			currIP = cip
+		}
 	}
 }
 

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -84,4 +87,104 @@ func LogError(err error, context ...map[string]interface{}) bool {
 		log.Error(err.Error())
 	}
 	return true
+}
+
+func getOwnIP() string {
+	resp, err := http.Get("https://ifconfig.me")
+	if err != nil {
+		log.Error(err.Error())
+		return ""
+	}
+
+	cnt, _ := ioutil.ReadAll(resp.Body)
+	return string(cnt)
+}
+
+func isIPv4(inp string) bool {
+	return net.ParseIP(inp).To4() != nil
+}
+
+//Return true if valid
+func isValidCallback(inp string, allowBogon bool, addIPs ...string) (bool, error) {
+	if !isValidHTTPURL(inp) {
+		return false, nil
+	}
+
+	inp = strings.TrimSpace(inp)
+
+	//If inp is an IP
+	if isIPv4(inp) {
+		//Check for bogon
+		isReserved, err := gaw.IsReserved(inp)
+		if err != nil || (isReserved && !allowBogon) {
+			return false, err
+		}
+
+		//Check additional IPs
+		for _, addIP := range addIPs {
+			addIP = strings.TrimSpace(addIP)
+			if len(addIP) == 0 {
+				continue
+			}
+			if strings.TrimSpace(addIP) == inp {
+				return false, nil
+			}
+		}
+
+		//Otherwise return valid
+		return true, nil
+	}
+
+	u, err := url.Parse(inp)
+	if err != nil {
+		return false, err
+	}
+
+	//If host, do DNS lookup
+	ips, err := net.LookupHost(u.Hostname())
+	if err != nil {
+		//If server can't lookup the host, then the host is not valid
+		return false, nil
+	}
+
+	//Loop DNS IPs and check if is reserved
+	for _, ipp := range ips {
+		isReserved, err := gaw.IsIPReserved(strings.TrimSpace(ipp))
+		if err != nil || (isReserved && !allowBogon) {
+			return false, err
+		}
+	}
+
+	//Loop DNS IPs and compare with add IPs
+	for _, ipp := range ips {
+		for _, addIP := range addIPs {
+			addIP = strings.TrimSpace(addIP)
+			if len(addIP) == 0 {
+				continue
+			}
+			if addIP == strings.TrimSpace(ipp) {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
+}
+
+//AllowedSchemes schemes that are allowed in urls
+var AllowedSchemes = []string{"http", "https"}
+
+func isValidHTTPURL(inp string) bool {
+	//Allow raw IPs
+	if isIPv4(inp) {
+		return true
+	}
+
+	//If not an IP, check for a valid URL
+	u, err := url.Parse(inp)
+	if err != nil {
+		return false
+	}
+
+	return gaw.IsInStringArray(u.Scheme, AllowedSchemes)
 }

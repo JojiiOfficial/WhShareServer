@@ -64,16 +64,7 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Validate callbackURL -> returns error if invalid
-	isReserved, err := gaw.IsReserved(request.CallbackURL)
-	if err != nil {
-		sendResponse(w, ResponseError, InvalidCallbackURL, 406)
-		return
-	}
-
-	//Check if ip is bogon IPs are allowed. If not check IP
-	if !config.Server.BogonAsCallback && isReserved {
-		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
+	if !validateCallbackURL(w, request.CallbackURL) {
 		return
 	}
 
@@ -142,16 +133,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Validate callbackURL -> returns error if invalid
-	isReserved, err := gaw.IsReserved(request.CallbackURL)
-	if err != nil {
-		sendResponse(w, ResponseError, InvalidCallbackURL, 406)
-		return
-	}
-
-	//Check if ip is bogon IPs are allowed. If not check IP
-	if !config.Server.BogonAsCallback && isReserved {
-		sendError("ip reserved", w, "CallbackURL points to reserved IP", 422)
+	if !validateCallbackURL(w, request.CallbackURL) {
 		return
 	}
 
@@ -159,7 +141,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	userID := uint32(1)
 	var user *User
 	if len(token) > 0 {
-		user, err = getUserIDFromSession(db, token)
+		user, err := getUserIDFromSession(db, token)
 		if err != nil {
 			log.Error(err)
 			userID = 1
@@ -499,34 +481,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, ResponseSuccess, "", nil)
 }
 
-// ------------------------ REST Helper functions -----------------------
-
-//Returns true on error
-func checkInput(w http.ResponseWriter, request interface{}, token string, contents ...string) bool {
-	if isStructInvalid(request) {
-		sendError("input missing", w, WrongInputFormatError, 422)
-		return true
-	}
-
-	if len(token) != 64 {
-		sendError("token invalid", w, InvalidTokenError, 403)
-		return true
-	}
-
-	return checkPayloadSizes(w, defaultMaxPayloadSize, contents...)
-}
-
-//Returns true on error
-func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...string) bool {
-	for _, content := range contents {
-		if uint(len(content)) > maxPayloadSize-1 {
-			sendResponse(w, ResponseError, "Content too long!", nil, 413)
-			return true
-		}
-	}
-	return false
-}
-
+//-> /get/webhook
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sourceID := vars["sourceID"]
@@ -601,6 +556,34 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ------------------------ REST Helper functions -----------------------
+
+//Returns true on error
+func checkInput(w http.ResponseWriter, request interface{}, token string, contents ...string) bool {
+	if isStructInvalid(request) {
+		sendError("input missing", w, WrongInputFormatError, 422)
+		return true
+	}
+
+	if len(token) != 64 {
+		sendError("token invalid", w, InvalidTokenError, 403)
+		return true
+	}
+
+	return checkPayloadSizes(w, defaultMaxPayloadSize, contents...)
+}
+
+//Returns true on error
+func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...string) bool {
+	for _, content := range contents {
+		if uint(len(content)) > maxPayloadSize-1 {
+			sendResponse(w, ResponseError, "Content too long!", nil, 413)
+			return true
+		}
+	}
+	return false
+}
+
 func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) {
 	statusCode := http.StatusOK
 	s := "0"
@@ -652,4 +635,26 @@ func sendError(erre string, w http.ResponseWriter, message string, statusCode in
 
 func sendServerError(w http.ResponseWriter) {
 	sendError("internal server error", w, ServerError, 500)
+}
+
+//Return true if exit
+func validateCallbackURL(w http.ResponseWriter, callbackURL string) bool {
+	//set addIP to server IP if serverHost as callback is disabled
+	addIP := ""
+	if !config.Server.ServerHostAsCallback {
+		addIP = currIP
+	}
+	//Check if ip is bogon IPs are allowed. If not check IP
+	isCallbackValid, err := isValidCallback(callbackURL, config.Server.BogonAsCallback, addIP)
+	if LogError(err) {
+		sendServerError(w)
+		return false
+	}
+
+	if !isCallbackValid {
+		sendError("ip reserved", w, "CallbackURL points to reserved IP, is Servers IP or can't lookup host", 422)
+		return false
+	}
+
+	return true
 }

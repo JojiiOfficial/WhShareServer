@@ -34,12 +34,13 @@ type configRetries struct {
 }
 
 type configServer struct {
-	Database          configDBstruct
-	WebhookBlacklist  configWhBlacklist
-	AllowRegistration bool `default:"false"`
-	BogonAsCallback   bool `default:"false"`
-	WorkerCount       int  `default:"8"`
-	Retries           configRetries
+	Database             configDBstruct
+	WebhookBlacklist     configWhBlacklist
+	AllowRegistration    bool `default:"false"`
+	BogonAsCallback      bool `default:"false"`
+	ServerHostAsCallback bool `default:"false"`
+	WorkerCount          int  `default:"8"`
+	Retries              configRetries
 }
 
 type configDBstruct struct {
@@ -90,8 +91,9 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 		}
 		config = ConfigStruct{
 			Server: configServer{
-				AllowRegistration: false,
-				BogonAsCallback:   false,
+				AllowRegistration:    false,
+				BogonAsCallback:      false,
+				ServerHostAsCallback: false,
 				Retries: configRetries{
 					RetryTimes: map[uint8]time.Duration{
 						0: 1 * time.Minute,
