@@ -8,7 +8,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "0.19.3a"
+const version = "0.19.4a"
 
 var (
 	app        = kingpin.New("server", "A Rest server")
