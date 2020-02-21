@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -13,9 +14,11 @@ import (
 )
 
 var (
-	retryService *RetryService
-	currIP       string
+	retryService        *RetryService
+	hookAntiSpamService *WebhookAntiSpammer
 )
+
+var currIP string
 
 func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 	log.Info("Starting version " + version)
@@ -24,40 +27,44 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 		log.Info("Allowing bogon as callbackURL!")
 	}
 
+	//initializing exit callback
 	ctx := initExitCallback(dab)
 	defer goodbye.Exit(ctx, -1)
 
+	//creating new router
 	router := NewRouter()
-	db = dab
 
+	//Setting up database
+	db = dab
 	db.SetErrHook(func(err error, query, prefix string) {
-		log.Error(prefix + query)
+		logMessage := prefix + query + ": " + err.Error()
+
+		//Warn only on production
+		if isDebug {
+			log.Error(logMessage)
+		} else {
+			log.Warn(logMessage)
+		}
 	}, dbhelper.ErrHookOptions{
-		Prefix:         "In query: ",
+		Prefix:         "Query: ",
 		ReturnNilOnErr: false,
 	})
 
-	if config.Webserver.HTTPS.Enabled {
-		go (func() {
-			log.Infof("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
-			log.Fatal(http.ListenAndServeTLS(config.Webserver.HTTPS.ListenAddress, config.Webserver.HTTPS.CertFile, config.Webserver.HTTPS.KeyFile, router))
-		})()
-	}
-	if config.Webserver.HTTP.Enabled {
-		go (func() {
-			log.Infof("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
-			log.Fatal(http.ListenAndServe(config.Webserver.HTTP.ListenAddress, router))
-		})()
-	}
+	//Creating the hook anti spam service
+	hookAntiSpamService = NewWebhookAntiSpammer("whASpam", 15*time.Second)
 
 	c := make(chan string, 1)
 	go (func() {
 		c <- getOwnIP()
 	})()
 
+	//Starting services
+
+	//Create and start retryService
 	retryService = NewRetryService(db, config)
 	retryService.start()
 
+	//Start webhook cleaner
 	startWebhookCleaner(db)
 
 	currIP = <-c
@@ -66,6 +73,11 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 	} else {
 		log.Debugf("Servers IP address is '%s'\n", currIP)
 	}
+
+	//Start the WebServer
+	startWebServer(router, config)
+
+	log.Info("Startup completed")
 
 	for {
 		time.Sleep(time.Hour)
@@ -76,6 +88,24 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 			log.Infof("Server got new IP address %s\n", cip)
 			currIP = cip
 		}
+	}
+}
+
+func startWebServer(router *mux.Router, config *ConfigStruct) {
+	//Start HTTPS if enabled
+	if config.Webserver.HTTPS.Enabled {
+		log.Infof("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
+		go (func() {
+			log.Fatal(http.ListenAndServeTLS(config.Webserver.HTTPS.ListenAddress, config.Webserver.HTTPS.CertFile, config.Webserver.HTTPS.KeyFile, router))
+		})()
+	}
+
+	//Start HTTP if enabled
+	if config.Webserver.HTTP.Enabled {
+		log.Infof("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
+		go (func() {
+			log.Fatal(http.ListenAndServe(config.Webserver.HTTP.ListenAddress, router))
+		})()
 	}
 }
 

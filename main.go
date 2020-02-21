@@ -36,8 +36,9 @@ var (
 )
 
 var (
-	config *ConfigStruct
-	db     *dbhelper.DBhelper
+	config  *ConfigStruct
+	db      *dbhelper.DBhelper
+	isDebug bool = false
 )
 
 func main() {
@@ -84,6 +85,7 @@ func main() {
 	case LogLevels[0]:
 		//Debug
 		log.SetLevel(log.DebugLevel)
+		isDebug = true
 	case LogLevels[1]:
 		//Info
 		log.SetLevel(log.InfoLevel)

@@ -494,14 +494,17 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	source, err := getSourceFromSourceID(db, sourceID)
 	if err != nil {
-		log.Info("webhookHandler - Source not found")
+		log.Warn("WebhookHandler - Source not found")
 		sendResponse(w, ResponseError, "404 Not found", nil, 404)
 		return
 	}
 
 	if source.Secret == secret {
+		if hookAntiSpamService.HandleHook(source) {
+			return
+		}
 		c := make(chan bool, 1)
-		log.Info("New valid webhook:", source.Name)
+		log.Info("New webhook:", source.Name)
 
 		go (func(req *http.Request) {
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist

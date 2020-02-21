@@ -24,7 +24,7 @@ func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
 	log.Info("Connected successfully")
 
 	//Only debugMode if logLevel is debug
-	db.Options.Debug = *appLogLevel == LogLevels[0]
+	db.Options.Debug = isDebug
 
 	db.Options.UseColors = !(*appNoColor)
 	return db, updateDB(db)
