@@ -14,6 +14,7 @@ const (
 	TableSubscriptions = "Subscriptions"
 	TableModes         = "Modes"
 	TableWebhooks      = "Webhooks"
+	TableRoles         = "Roles"
 )
 
 func getInitSQL() dbhelper.QueryChain {
@@ -21,10 +22,16 @@ func getInitSQL() dbhelper.QueryChain {
 		Name:  "initChain",
 		Order: 0,
 		Queries: dbhelper.CreateInitVersionSQL(
+			//Roles
+			dbhelper.InitSQL{
+				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `name` text NOT NULL, `maxSources` int(11) NOT NULL, `maxSubscriptions` int(11) NOT NULL, `maxHookCalls` int(11) NOT NULL COMMENT 'per month', `maxTraffic` int(11) NOT NULL COMMENT 'in kb', PRIMARY KEY (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4",
+				FParams: []string{TableRoles},
+			},
+
 			//User
 			dbhelper.InitSQL{
 				//Create table
-				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `ip` varchar(16) NOT NULL, `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`)) ENGINE = InnoDB;",
+				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `ip` varchar(16) NOT NULL, `role` int(10) unsigned NOT NULL, `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`), KEY `role` (`role`), CONSTRAINT `User_ibfk_1` FOREIGN KEY (`role`) REFERENCES `Roles` (`pk_id`)) ENGINE = InnoDB;",
 				FParams: []string{TableUser},
 			},
 
@@ -120,8 +127,8 @@ func updateIP(db *dbhelper.DBhelper, userID uint32, ip string) error {
 
 func getUserIDFromSession(db *dbhelper.DBhelper, token string) (*User, error) {
 	var user User
-	err := db.QueryRowf(&user, "SELECT pk_id, username, createdAt, isValid FROM %s WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1",
-		[]string{TableUser, TableUser, TableLoginSession, TableUser}, token)
+	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, role.pk_id, role.name "role.name", role.maxSources "role.maxSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1`,
+		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableLoginSession, TableUser}, token)
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +226,12 @@ func userExitst(db *dbhelper.DBhelper, username string) (bool, error) {
 func insertUser(db *dbhelper.DBhelper, username, password, ip string) error {
 	_, err := db.Execf("INSERT INTO %s (username, password, ip) VALUES(?,?,?)", []string{TableUser}, username, password, ip)
 	return err
+}
+
+func getAllSessions(db *dbhelper.DBhelper) ([]string, error) {
+	var sessions []string
+	err := db.QueryRowsf(&sessions, "SELECT sessionToken FROM %s WHERE isValid=1", []string{TableLoginSession})
+	return sessions, err
 }
 
 func (user *User) hasSourceWithName(db *dbhelper.DBhelper, name string) (bool, error) {

@@ -33,6 +33,8 @@ var (
 	configCmd           = app.Command("config", "Commands for the config file")
 	configCmdCreate     = configCmd.Command("create", "Create config file")
 	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(getDefaultConfig()).String()
+
+	benchCmd = app.Command("bench", "benchmark the server")
 )
 
 var (
@@ -106,6 +108,24 @@ func main() {
 	case serverCmdStart.FullCommand():
 		{
 			runCmd(config, db)
+		}
+	case benchCmd.FullCommand():
+		{
+			//ToDo enchant the bench cmd
+			start := time.Now()
+			sessions, err := getAllSessions(db)
+			fmt.Printf("Getting all %d sessions took %s\n", len(sessions), time.Now().Sub(start).String())
+			if err != nil {
+				LogError(err)
+				return
+			}
+
+			fmt.Println("Get all users having a session:")
+			for _, session := range sessions {
+				start := time.Now()
+				getUserIDFromSession(db, session)
+				fmt.Println(time.Now().Sub(start).String())
+			}
 		}
 	//Config --------------------
 	case configCmdCreate.FullCommand():

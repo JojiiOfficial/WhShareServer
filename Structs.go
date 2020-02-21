@@ -15,6 +15,7 @@ type User struct {
 	Username  string `db:"username"`
 	CreatedAt string `db:"createdAt"`
 	IsValid   bool   `db:"isValid"`
+	Role      Role   `db:"role"`
 }
 
 //Source a webhook source
@@ -48,6 +49,16 @@ type Webhook struct {
 	Headers  string `db:"header"`
 	Payload  string `db:"payload"`
 	Received string `db:"received"`
+}
+
+//Role the role of a user
+type Role struct {
+	PkID             uint32 `db:"pk_id" orm:"pk,ai"`
+	Name             string `db:"name"`
+	MaxSources       int    `db:"maxSources"`
+	MaxSubscriptions string `db:"maxSubscriptions"`
+	MaxHookCalls     int    `db:"maxHookCalls"`
+	MaxTraffic       int    `db:"maxTraffic"`
 }
 
 // ------------- REST structs ----------------
