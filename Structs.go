@@ -59,7 +59,7 @@ type Role struct {
 	Name             string `db:"name"`
 	MaxPrivSources   int    `db:"maxPrivSources"`
 	MaxPubSources    int    `db:"maxPubSources"`
-	MaxSubscriptions string `db:"maxSubscriptions"`
+	MaxSubscriptions int    `db:"maxSubscriptions"`
 	MaxHookCalls     int    `db:"maxHookCalls"`
 	MaxTraffic       int    `db:"maxTraffic"`
 }

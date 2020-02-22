@@ -133,22 +133,37 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validateCallbackURL(w, request.CallbackURL) {
-		return
-	}
-
 	//Determine the user
 	userID := uint32(1)
 	var user *User
+	var err error
 	if len(token) > 0 {
-		user, err := getUserBySession(db, token)
+		user, err = getUserBySession(db, token)
 		if err != nil {
-			log.Error(err)
-			userID = 1
-		} else {
-			userID = user.Pkid
-			go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+			sendServerError(w)
+			return
+
 		}
+		go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+		userSubscriptions, err := user.getSubscriptionCount(db)
+		if err != nil {
+			sendServerError(w)
+			return
+		}
+
+		if user.Role.MaxSubscriptions == 0 {
+			sendResponse(w, ResponseError, "You are not allowed to have subscriptions", nil, 403)
+			return
+		} else if user.Role.MaxSubscriptions != -1 && userSubscriptions >= uint32(user.Role.MaxSubscriptions) {
+			sendResponse(w, ResponseError, "Subscription limit exceeded", nil, 403)
+			return
+		}
+
+		userID = user.Pkid
+	}
+
+	if !validateCallbackURL(w, request.CallbackURL) {
+		return
 	}
 
 	//The source to get subbed
@@ -176,7 +191,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isSubscribed {
-		sendResponse(w, ResponseError, "You can only subscribe one time to a source", nil)
+		sendResponse(w, ResponseError, "You can subscribe to a source only once", nil)
 		return
 	}
 

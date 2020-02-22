@@ -30,7 +30,7 @@ func getInitSQL() dbhelper.QueryChain {
 			},
 			dbhelper.InitSQL{
 				//Insert default roles
-				Query:   "INSERT INTO `%s` (`pk_id`, `name`, `maxPrivSources`,`maxPubSources`, `maxSubscriptions`, `maxHookCalls`, `maxTraffic`) VALUES (1, 'guest',0, 0, 10, 0, 0), (2, 'admin', -1, -1 ,-1, -1, -1), (3, 'user', 2, 40, 100, 50, 10000);",
+				Query:   "INSERT INTO `%s` (`pk_id`, `name`, `maxPrivSources`,`maxPubSources`, `maxSubscriptions`, `maxHookCalls`, `maxTraffic`) VALUES (1, 'guest',0, 0, -1, 0, 0), (2, 'admin', -1, -1 ,-1, -1, -1), (3, 'user', 2, 40, 100, 50, 10000);",
 				FParams: []string{TableRoles},
 			},
 
@@ -268,6 +268,12 @@ func (user *User) getSourceCount(db *dbhelper.DBhelper, private bool) (uint, err
 		priv = 1
 	}
 	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE creator=? AND private=?", []string{TableSources}, user.Pkid, priv)
+	return c, err
+}
+
+func (user *User) getSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
+	var c uint32
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=?", []string{TableSubscriptions}, user.Pkid)
 	return c, err
 }
 
