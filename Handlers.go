@@ -28,7 +28,13 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := removeSubscription(db, request.SubscriptionID)
+	subscription, err := getSubscriptionBySubsID(db, request.SubscriptionID)
+	if err != nil {
+		sendServerError(w)
+		return
+	}
+
+	err = subscription.remove(db, retryService)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -81,7 +87,7 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	subscription, err := getSubscriptionFromSubsID(db, request.SubscriptionID)
+	subscription, err := getSubscriptionBySubsID(db, request.SubscriptionID)
 	if err != nil {
 		sendServerError(w)
 		return

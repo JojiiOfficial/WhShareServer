@@ -70,9 +70,7 @@ func (retryService *RetryService) handle() {
 		if retry.NextRetry.Unix() <= time.Now().Unix() {
 			if retry.TryNr >= uint8(len(retryService.RetryTimes)) {
 				log.Info("Removing subscription. Reason: too many retries")
-
-				retryService.remove(subsPK)
-				err := removeSubscriptionByPK(retryService.db, subsPK)
+				err := removeSubscriptionByPK(retryService.db, subsPK, *retryService)
 				if err != nil {
 					log.Println(err.Error())
 				}
@@ -86,7 +84,7 @@ func (retryService *RetryService) handle() {
 }
 
 func (retry *Retry) do(subsPK uint32) {
-	subscription, err := getSubscriptionFromPK(retryService.db, subsPK)
+	subscription, err := getSubscriptionByPK(retryService.db, subsPK)
 	if err != nil {
 		log.Error("getSubsFromPK", err.Error())
 		return

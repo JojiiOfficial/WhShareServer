@@ -196,30 +196,6 @@ func getSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
 	return sources, nil
 }
 
-func getSubscriptionsForSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscription, error) {
-	var subscriptions []Subscription
-	err := db.QueryRowsf(&subscriptions, "SELECT * FROM %s WHERE source=?", []string{TableSubscriptions}, sourceID)
-	return subscriptions, err
-}
-
-func getSubscriptionFromSubsID(db *dbhelper.DBhelper, subscriptionID string) (*Subscription, error) {
-	var subscription Subscription
-	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE subscriptionID=? LIMIT 1", []string{TableSubscriptions}, subscriptionID)
-	if err != nil {
-		return nil, err
-	}
-	return &subscription, nil
-}
-
-func getSubscriptionFromPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, error) {
-	var subscription Subscription
-	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSubscriptions}, pkID)
-	if err != nil {
-		return nil, err
-	}
-	return &subscription, nil
-}
-
 func getSourceFromPK(db *dbhelper.DBhelper, sourceID uint32) (*Source, error) {
 	var source Source
 	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSources}, sourceID)
@@ -271,12 +247,6 @@ func (user *User) getSourceCount(db *dbhelper.DBhelper, private bool) (uint, err
 	return c, err
 }
 
-func (user *User) getSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
-	var c uint32
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=?", []string{TableSubscriptions}, user.Pkid)
-	return c, err
-}
-
 //Delete webhooks which aren't used anymore
 func deleteOldHooks(db *dbhelper.DBhelper) {
 	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})
@@ -286,38 +256,7 @@ func deleteOldHooks(db *dbhelper.DBhelper) {
 	log.Info("Webhook cleanup done")
 }
 
-// ----------> Updates
-
-func (sub *Subscription) triggerAndValidate(db *dbhelper.DBhelper) error {
-	_, err := db.Execf("UPDATE %s SET isValid=1, lastTrigger=now() WHERE subscriptionID=?", []string{TableSubscriptions}, sub.SubscriptionID)
-	return err
-}
-
-func (sub *Subscription) trigger(db *dbhelper.DBhelper) {
-	db.Execf("UPDATE %s SET lastTrigger=now() WHERE pk_id=?", []string{TableSubscriptions}, sub.PkID)
-}
-
-func (sub *Subscription) updateCallback(db *dbhelper.DBhelper, newCallback string) error {
-	_, err := db.Execf("UPDATE %s SET callbackURL=? WHERE subscriptionID=?", []string{TableSubscriptions}, newCallback, sub.SubscriptionID)
-	return err
-}
-
 // -----------> Inserts
-
-func (sub *Subscription) insert(db *dbhelper.DBhelper) error {
-	sub.SubscriptionID = gaw.RandString(32)
-	rs, err := db.Execf("INSERT INTO %s (subscriptionID, subscriber, source, callbackURL) VALUES (?,?,?,?)", []string{TableSubscriptions}, sub.SubscriptionID, sub.UserID, sub.Source, sub.CallbackURL)
-	if err != nil {
-		return err
-	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	sub.PkID = uint32(id)
-	return nil
-}
-
 func (session *LoginSession) insert(db *dbhelper.DBhelper) error {
 	rs, err := db.Execf("INSERT INTO %s (sessionToken, userID) VALUES(?,?)", []string{TableLoginSession}, session.Token, session.UserID)
 	if err != nil {
@@ -383,15 +322,5 @@ func (source *Source) delete(db *dbhelper.DBhelper) error {
 		return err
 	}
 	_, err = db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSources}, source.PkID)
-	return err
-}
-
-func removeSubscriptionByPK(db *dbhelper.DBhelper, pk uint32) error {
-	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pk)
-	return err
-}
-
-func removeSubscription(db *dbhelper.DBhelper, subscriptionID string) error {
-	_, err := db.Execf("DELETE FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
 	return err
 }
