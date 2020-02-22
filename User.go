@@ -47,7 +47,7 @@ func insertUser(db *dbhelper.DBhelper, username, password, ip string) error {
 
 //Returns count of affected rows
 func resetUserResourceUsage(db *dbhelper.DBhelper) (int64, error) {
-	rs, err := db.Execf("UPDATE %s SET resetIndex=+TIMESTAMPDIFF(MONTH, createdAt, now()), traffic=0, hookCalls=0 WHERE TIMESTAMPDIFF(MONTH, createdAt, now()) > resetIndex", []string{TableUser})
+	rs, err := db.Execf("UPDATE %s SET resetIndex=TIMESTAMPDIFF(MONTH, createdAt, now()), traffic=0, hookCalls=0 WHERE TIMESTAMPDIFF(MONTH, createdAt, now()) > resetIndex", []string{TableUser})
 	if err != nil {
 		return 0, err
 	}
