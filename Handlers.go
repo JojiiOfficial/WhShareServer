@@ -71,13 +71,13 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 	//Determine the user
 	userID := uint32(1)
 	if len(token) > 0 {
-		user, err := getUserIDFromSession(db, token)
+		user, err := getUserBySession(db, token)
 		if err != nil {
 			LogError(err)
 			userID = 1
 		} else {
 			userID = user.Pkid
-			user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+			go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 		}
 	}
 
@@ -141,13 +141,13 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	userID := uint32(1)
 	var user *User
 	if len(token) > 0 {
-		user, err := getUserIDFromSession(db, token)
+		user, err := getUserBySession(db, token)
 		if err != nil {
 			log.Error(err)
 			userID = 1
 		} else {
 			userID = user.Pkid
-			user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+			go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 		}
 	}
 
@@ -217,12 +217,12 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := getUserIDFromSession(db, request.Token)
+	user, err := getUserBySession(db, request.Token)
 	if err != nil {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
-	user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	nameExitst, err := user.hasSourceWithName(db, request.Name)
 	if err != nil {
@@ -234,6 +234,8 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
 		return
 	}
+
+	fmt.Println(user.Pkid)
 
 	source := &Source{
 		Creator:     *user,
@@ -271,12 +273,13 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		request.SourceID = ""
 	}
 
-	user, err := getUserIDFromSession(db, request.Token)
+	user, err := getUserBySession(db, request.Token)
 	if err != nil {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
-	user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+
+	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	var response listSourcesResponse
 	if len(request.SourceID) == 0 {
@@ -338,13 +341,13 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := getUserIDFromSession(db, request.Token)
+	user, err := getUserBySession(db, request.Token)
 	if err != nil {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
 
-	user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	source, err := getSourceFromSourceID(db, request.SourceID)
 	if err != nil {
@@ -500,18 +503,43 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source.Secret == secret {
-		if hookAntiSpamService.HandleHook(source) {
+		if !hookAntiSpamService.HandleHook(source) {
 			return
 		}
+
 		c := make(chan bool, 1)
 		log.Info("New webhook:", source.Name)
+		msg := "error"
 
 		go (func(req *http.Request) {
+			userChan := make(chan *User, 1)
+			//Get source user
+			go (func() {
+				us, err := getUserByPK(db, source.CreatorID)
+				if err != nil {
+					LogError(err)
+					userChan <- nil
+				} else {
+					userChan <- us
+				}
+			})()
+
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
 			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
 				log.Warnf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
 
+				msg = "error"
 				c <- true
+				return
+			}
+
+			//Await getting user
+			user := <-userChan
+
+			//return on error or user not allowed to send hooks
+			if user == nil || user.Role.MaxTraffic == 0 || user.Role.MaxHookCalls == 0 {
+				c <- false
+				msg = "not allowed to send hooks"
 				return
 			}
 
@@ -519,10 +547,24 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
 			if err != nil {
 				LogError(err)
+				msg = "error reading content"
 				c <- false
 				return
 			}
 			req.Body.Close()
+
+			headers := headerToString(req.Header)
+
+			//Calculate traffic of request
+			reqTraffic := uint32(len(payload)) + uint32(len(headers))
+
+			//Check if user limit exceeded
+			if (user.Role.MaxTraffic != -1 && uint32(user.Role.MaxTraffic*1024) <= (user.Traffic+reqTraffic)) ||
+				(user.Role.MaxHookCalls != -1 && user.Role.MaxHookCalls < int(user.HookCalls+1)) {
+				msg = "traffic/hookCall limit exceeded"
+				c <- false
+				return
+			}
 
 			//Delete in config specified json objects
 			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[ModeToString[source.Mode]], false)
@@ -530,14 +572,17 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 				LogError(err, log.Fields{
 					"msg": "Error filtering JSON!",
 				})
-
+				msg = "server error"
 				c <- true
 				return
 			}
 
 			c <- true
 
-			headers := headerToString(req.Header)
+			//Update traffic and hookCallCount if not both unlimited
+			if user.Role.MaxHookCalls != -1 || user.Role.MaxTraffic != -1 {
+				user.addHookCall(db, reqTraffic)
+			}
 
 			webhook := &Webhook{
 				SourceID: source.PkID,
@@ -549,9 +594,9 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		})(r)
 
 		if <-c {
-			sendResponse(w, ResponseSuccess, "success", nil)
+			sendResponse(w, ResponseSuccess, "Success", nil)
 		} else {
-			sendResponse(w, ResponseError, "error", nil, 500)
+			sendResponse(w, ResponseError, msg, nil, 500)
 		}
 
 	} else {

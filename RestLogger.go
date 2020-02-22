@@ -14,7 +14,9 @@ func Logger(inner http.Handler, name string) http.Handler {
 		start := time.Now()
 		inner.ServeHTTP(w, r)
 		dur := time.Since(start)
-		if dur > 1500*time.Millisecond {
+		if dur < 1500*time.Millisecond {
+			log.Debugf("Duration: %s\n", dur.String())
+		} else if dur > 1500*time.Millisecond {
 			log.Warningf("Duration: %s\n", dur.String())
 		}
 	})

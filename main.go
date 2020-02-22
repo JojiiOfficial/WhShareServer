@@ -123,7 +123,7 @@ func main() {
 			fmt.Println("Get all users having a session:")
 			for _, session := range sessions {
 				start := time.Now()
-				getUserIDFromSession(db, session)
+				getUserBySession(db, session)
 				fmt.Println(time.Now().Sub(start).String())
 			}
 		}

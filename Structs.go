@@ -14,6 +14,8 @@ type User struct {
 	Pkid      uint32 `db:"pk_id" orm:"pk,ai"`
 	Username  string `db:"username"`
 	CreatedAt string `db:"createdAt"`
+	Traffic   uint32 `db:"traffic"`
+	HookCalls uint32 `db:"hookCalls"`
 	IsValid   bool   `db:"isValid"`
 	Role      Role   `db:"role"`
 }

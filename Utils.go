@@ -50,6 +50,18 @@ func setHeadersFromStr(headers string, header *http.Header) {
 	}
 }
 
+//Returns the size in bytes of the header
+func getHeaderSize(headers http.Header) uint32 {
+	var size uint32
+	for k, v := range headers {
+		size += uint32(len(k))
+		for _, val := range v {
+			size += uint32(len(val))
+		}
+	}
+	return size
+}
+
 func isHeaderBlocklistetd(headers http.Header, blocklist *map[string][]string) bool {
 	start := time.Now()
 

@@ -31,7 +31,7 @@ func getInitSQL() dbhelper.QueryChain {
 			//User
 			dbhelper.InitSQL{
 				//Create table
-				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `ip` varchar(16) NOT NULL, `role` int(10) unsigned NOT NULL, `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`), KEY `role` (`role`), CONSTRAINT `User_ibfk_1` FOREIGN KEY (`role`) REFERENCES `Roles` (`pk_id`)) ENGINE = InnoDB;",
+				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `ip` varchar(16) NOT NULL, `role` int(10) unsigned NOT NULL, `traffic` int(10) unsigned NOT NULL COMMENT 'in bytes', `hookCalls` int(10) unsigned NOT NULL, `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`), KEY `role` (`role`), CONSTRAINT `User_ibfk_1` FOREIGN KEY (`role`) REFERENCES `Roles` (`pk_id`)) ENGINE = InnoDB;",
 				FParams: []string{TableUser},
 			},
 
@@ -100,7 +100,7 @@ func getInitSQL() dbhelper.QueryChain {
 
 func loginQuery(db *dbhelper.DBhelper, username, password, ip string) (string, bool, error) {
 	var pkid uint32
-	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1", []string{TableUser}, username, password)
+	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1 LIMIT 1", []string{TableUser}, username, password)
 	if err != nil || pkid < 1 {
 		return "", false, nil
 	}
@@ -125,10 +125,20 @@ func updateIP(db *dbhelper.DBhelper, userID uint32, ip string) error {
 	return err
 }
 
-func getUserIDFromSession(db *dbhelper.DBhelper, token string) (*User, error) {
+func getUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 	var user User
-	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, role.pk_id, role.name "role.name", role.maxSources "role.maxSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1`,
+	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, traffic, hookCalls, role.pk_id "role.pk_id", role.name "role.name", role.maxSources "role.maxSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1 LIMIT 1`,
 		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableLoginSession, TableUser}, token)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func getUserByPK(db *dbhelper.DBhelper, pkID uint32) (*User, error) {
+	var user User
+	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, traffic, hookCalls, createdAt, isValid, role.pk_id "role.pk_id", role.name "role.name", role.maxSources "role.maxSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=? and %s.isValid=1 LIMIT 1`,
+		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableUser}, pkID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +167,14 @@ func (user *User) updateIP(db *dbhelper.DBhelper, ip string) error {
 	return updateIP(db, user.Pkid, ip)
 }
 
+func (user *User) addHookCall(db *dbhelper.DBhelper, addTraffic uint32) error {
+	_, err := db.Execf("UPDATE %s SET traffic=traffic+?, hookCalls=hookCalls+1 WHERE pk_id=?", []string{TableUser}, addTraffic, user.Pkid)
+	return err
+}
+
 func getSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, error) {
 	var source Source
-	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE sourceID=?", []string{TableSources}, sourceID)
+	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE sourceID=? LIMIT 1", []string{TableSources}, sourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +198,7 @@ func getSubscriptionsForSource(db *dbhelper.DBhelper, sourceID uint32) ([]Subscr
 
 func getSubscriptionFromSubsID(db *dbhelper.DBhelper, subscriptionID string) (*Subscription, error) {
 	var subscription Subscription
-	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE subscriptionID=?", []string{TableSubscriptions}, subscriptionID)
+	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE subscriptionID=? LIMIT 1", []string{TableSubscriptions}, subscriptionID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +207,7 @@ func getSubscriptionFromSubsID(db *dbhelper.DBhelper, subscriptionID string) (*S
 
 func getSubscriptionFromPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, error) {
 	var subscription Subscription
-	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pkID)
+	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSubscriptions}, pkID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +216,7 @@ func getSubscriptionFromPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, e
 
 func getSourceFromPK(db *dbhelper.DBhelper, sourceID uint32) (*Source, error) {
 	var source Source
-	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE pk_id=?", []string{TableSources}, sourceID)
+	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSources}, sourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +225,7 @@ func getSourceFromPK(db *dbhelper.DBhelper, sourceID uint32) (*Source, error) {
 
 func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error) {
 	var webhook Webhook
-	err := db.QueryRowf(&webhook, "SELECT * FROM %s WHERE pk_id=?", []string{TableWebhooks}, webhookID)
+	err := db.QueryRowf(&webhook, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableWebhooks}, webhookID)
 	if err != nil {
 		return nil, err
 	}
