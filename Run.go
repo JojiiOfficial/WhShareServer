@@ -80,14 +80,28 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 	log.Info("Startup completed")
 
 	for {
+		resetUsageService(db)
 		time.Sleep(time.Hour)
+		updateCurrIP()
+	}
+}
 
-		//Update IP address every hour
-		cip := getOwnIP()
-		if cip != currIP && isIPv4(cip) {
-			log.Infof("Server got new IP address %s\n", cip)
-			currIP = cip
-		}
+func resetUsageService(db *dbhelper.DBhelper) {
+	start := time.Now()
+	n, err := resetUserResourceUsage(db)
+	if err == nil && n > 0 {
+		dur := time.Now().Sub(start).String()
+		log.Debugf("Resource usage resetting took %s\n", dur)
+		log.Infof("Reset resource usage for %d user(s)", n)
+	}
+}
+
+func updateCurrIP() {
+	//Update IP address every hour
+	cip := getOwnIP()
+	if cip != currIP && isIPv4(cip) {
+		log.Infof("Server got new IP address %s\n", cip)
+		currIP = cip
 	}
 }
 
