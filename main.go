@@ -11,7 +11,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const version = "0.21.1a"
+const version = "0.21.4a"
 
 var (
 	app         = kingpin.New("server", "A Rest server")
@@ -56,7 +56,8 @@ func main() {
 		DisableTimestamp: false,
 		TimestampFormat:  time.Stamp,
 		FullTimestamp:    true,
-		ForceColors:      true,
+		ForceColors:      !*appNoColor,
+		DisableColors:    *appNoColor,
 	})
 
 	if parsed != configCmdCreate.FullCommand() {

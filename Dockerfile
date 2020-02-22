@@ -25,5 +25,5 @@ WORKDIR /app
 COPY --from=builder2 /app/WhShareServer/main .
 
 RUN mkdir /app/data/
-ENV S_LOG-LEVEL debug
+ENV S_LOG_LEVEL debug
 CMD [ "/app/main","server","start"]

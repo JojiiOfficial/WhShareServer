@@ -9,8 +9,8 @@ const (
 	//EnVarPrefix prefix of all used env vars
 	EnVarPrefix = "S"
 
-	EnVarLogLevel   = "LOG-LEVEL"
-	EnVarNoColor    = "NO-COLOR"
+	EnVarLogLevel   = "LOG_LEVEL"
+	EnVarNoColor    = "NO_COLOR"
 	EnVarYes        = "SKIP_CONFIRM"
 	EnVarConfigFile = "CONFIG"
 )
