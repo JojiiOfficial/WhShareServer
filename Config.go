@@ -17,8 +17,10 @@ type ConfigStruct struct {
 	Server configServer
 
 	Webserver struct {
-		HTTP  configHTTPstruct
-		HTTPS configTLSStruct
+		MaxHeaderLength uint  `default:"8000" required:"true"`
+		MaxBodyLength   int64 `default:"10000" required:"true"`
+		HTTP            configHTTPstruct
+		HTTPS           configTLSStruct
 	}
 }
 
@@ -127,9 +129,13 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 				},
 			},
 			Webserver: struct {
-				HTTP  configHTTPstruct
-				HTTPS configTLSStruct
+				MaxHeaderLength uint  `default:"8000" required:"true"`
+				MaxBodyLength   int64 `default:"10000" required:"true"`
+				HTTP            configHTTPstruct
+				HTTPS           configTLSStruct
 			}{
+				MaxHeaderLength: 8000,
+				MaxBodyLength:   10000,
 				HTTP: configHTTPstruct{
 					Enabled:       true,
 					ListenAddress: ":80",

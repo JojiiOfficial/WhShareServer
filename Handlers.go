@@ -660,7 +660,7 @@ func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, 
 
 //parseUserInput tries to read the body and parse it into p. Returns true on success
 func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool {
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 10000))
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, config.Webserver.MaxBodyLength))
 
 	if LogError(err) || LogError(r.Body.Close()) {
 		return false

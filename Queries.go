@@ -24,7 +24,13 @@ func getInitSQL() dbhelper.QueryChain {
 		Queries: dbhelper.CreateInitVersionSQL(
 			//Roles
 			dbhelper.InitSQL{
+				//Create role table
 				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `name` text NOT NULL, `maxSources` int(11) NOT NULL, `maxSubscriptions` int(11) NOT NULL, `maxHookCalls` int(11) NOT NULL COMMENT 'per month', `maxTraffic` int(11) NOT NULL COMMENT 'in kb', PRIMARY KEY (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4",
+				FParams: []string{TableRoles},
+			},
+			dbhelper.InitSQL{
+				//Insert default roles
+				Query:   "INSERT INTO `%s` (`pk_id`, `name`, `maxSources`, `maxSubscriptions`, `maxHookCalls`, `maxTraffic`) VALUES (1, 'guest', 0, 10, 0, 0), (2, 'admin', -1, -1, -1, -1), (3, 'user', 40, 100, 50, 10000);",
 				FParams: []string{TableRoles},
 			},
 
@@ -81,7 +87,7 @@ func getInitSQL() dbhelper.QueryChain {
 
 			//Insert user
 			dbhelper.InitSQL{
-				Query:   "INSERT INTO `%s` (`pk_id`, `username`, `password`, `ip`) VALUES (1, 'nouser', '','-');",
+				Query:   "INSERT INTO `%s` (`pk_id`, `username`, `password`, `ip`, `role`) VALUES (1, 'nouser', '','-','1');",
 				FParams: []string{TableUser},
 			},
 

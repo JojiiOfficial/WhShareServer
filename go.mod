@@ -15,6 +15,5 @@ require (
 	github.com/muesli/cache2go v0.0.0-20191019095710-4098a3aa8c94
 	github.com/sirupsen/logrus v1.4.2
 	github.com/thecodeteam/goodbye v0.0.0-20170927022442-a83968bda2d3
-	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
