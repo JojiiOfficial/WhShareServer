@@ -222,8 +222,38 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
+
 	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
 
+	//Check if user is allowed to create sources
+	if request.Private && user.Role.MaxPrivSources == 0 {
+		sendResponse(w, ResponseError, "You are not allowed to have private sources", nil, 403)
+		return
+	} else if !request.Private && user.Role.MaxPubSources == 0 {
+		sendResponse(w, ResponseError, "You are not allowed to have public sources", nil, 403)
+		return
+	}
+
+	scount, err := user.getSourceCount(db, request.Private)
+	if err != nil {
+		sendServerError(w)
+		return
+	}
+
+	//Check for source limit
+	if request.Private && user.Role.MaxPrivSources != -1 {
+		if scount >= uint(user.Role.MaxPrivSources) {
+			sendResponse(w, ResponseError, "Limit for private sources exceeded", nil, 403)
+			return
+		}
+	} else if !request.Private && user.Role.MaxPubSources != -1 {
+		if scount >= uint(user.Role.MaxPubSources) {
+			sendResponse(w, ResponseError, "Limit for public sources exceeded", nil, 403)
+			return
+		}
+	}
+
+	//Check if user already has a source with this name
 	nameExitst, err := user.hasSourceWithName(db, request.Name)
 	if err != nil {
 		sendServerError(w)
@@ -234,8 +264,6 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
 		return
 	}
-
-	fmt.Println(user.Pkid)
 
 	source := &Source{
 		Creator:     *user,

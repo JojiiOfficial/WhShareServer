@@ -25,12 +25,12 @@ func getInitSQL() dbhelper.QueryChain {
 			//Roles
 			dbhelper.InitSQL{
 				//Create role table
-				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `name` text NOT NULL, `maxSources` int(11) NOT NULL, `maxSubscriptions` int(11) NOT NULL, `maxHookCalls` int(11) NOT NULL COMMENT 'per month', `maxTraffic` int(11) NOT NULL COMMENT 'in kb', PRIMARY KEY (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4",
+				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `name` text NOT NULL, `maxPubSources` int(11) NOT NULL, `maxPrivSources` int(11) NOT NULL, `maxSubscriptions` int(11) NOT NULL, `maxHookCalls` int(11) NOT NULL COMMENT 'per month', `maxTraffic` int(11) NOT NULL COMMENT 'in kb', PRIMARY KEY (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4",
 				FParams: []string{TableRoles},
 			},
 			dbhelper.InitSQL{
 				//Insert default roles
-				Query:   "INSERT INTO `%s` (`pk_id`, `name`, `maxSources`, `maxSubscriptions`, `maxHookCalls`, `maxTraffic`) VALUES (1, 'guest', 0, 10, 0, 0), (2, 'admin', -1, -1, -1, -1), (3, 'user', 40, 100, 50, 10000);",
+				Query:   "INSERT INTO `%s` (`pk_id`, `name`, `maxPrivSources`,`maxPubSources`, `maxSubscriptions`, `maxHookCalls`, `maxTraffic`) VALUES (1, 'guest',0, 0, 10, 0, 0), (2, 'admin', -1, -1 ,-1, -1, -1), (3, 'user', 2, 40, 100, 50, 10000);",
 				FParams: []string{TableRoles},
 			},
 
@@ -133,7 +133,7 @@ func updateIP(db *dbhelper.DBhelper, userID uint32, ip string) error {
 
 func getUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 	var user User
-	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, traffic, hookCalls, role.pk_id "role.pk_id", role.name "role.name", role.maxSources "role.maxSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1 LIMIT 1`,
+	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, traffic, hookCalls, role.pk_id "role.pk_id", role.name "role.name", role.maxPrivSources "role.maxPrivSources",role.maxPubSources "role.maxPubSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1 LIMIT 1`,
 		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableLoginSession, TableUser}, token)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func getUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 
 func getUserByPK(db *dbhelper.DBhelper, pkID uint32) (*User, error) {
 	var user User
-	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, traffic, hookCalls, createdAt, isValid, role.pk_id "role.pk_id", role.name "role.name", role.maxSources "role.maxSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=? and %s.isValid=1 LIMIT 1`,
+	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, traffic, hookCalls, createdAt, isValid, role.pk_id "role.pk_id", role.name "role.name", role.maxPrivSources "role.maxPrivSources", role.maxPubSources "role.maxPubSources",role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=? and %s.isValid=1 LIMIT 1`,
 		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableUser}, pkID)
 	if err != nil {
 		return nil, err
@@ -259,6 +259,16 @@ func (user *User) hasSourceWithName(db *dbhelper.DBhelper, name string) (bool, e
 	var c int
 	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE name=? AND creator=?", []string{TableSources}, name, user.Pkid)
 	return c > 0, err
+}
+
+func (user *User) getSourceCount(db *dbhelper.DBhelper, private bool) (uint, error) {
+	var c uint
+	priv := 0
+	if private {
+		priv = 1
+	}
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE creator=? AND private=?", []string{TableSources}, user.Pkid, priv)
+	return c, err
 }
 
 //Delete webhooks which aren't used anymore

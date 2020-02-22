@@ -57,7 +57,8 @@ type Webhook struct {
 type Role struct {
 	PkID             uint32 `db:"pk_id" orm:"pk,ai"`
 	Name             string `db:"name"`
-	MaxSources       int    `db:"maxSources"`
+	MaxPrivSources   int    `db:"maxPrivSources"`
+	MaxPubSources    int    `db:"maxPubSources"`
 	MaxSubscriptions string `db:"maxSubscriptions"`
 	MaxHookCalls     int    `db:"maxHookCalls"`
 	MaxTraffic       int    `db:"maxTraffic"`
