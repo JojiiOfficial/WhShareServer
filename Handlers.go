@@ -24,7 +24,7 @@ const defaultMaxPayloadSize = uint(150)
 //Subscriptions ------------------------------
 //-> /sub/remove
 func unsubscribe(w http.ResponseWriter, r *http.Request) {
-	var request unsubscribeRequest
+	var request models.UnsubscribeRequest
 	if !parseUserInput(w, r, &request) {
 		return
 	}
@@ -50,7 +50,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 //-> /sub/updateCallbackURL
 func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
-	var request subscriptionUpdateCallbackRequest
+	var request models.SubscriptionUpdateCallbackRequest
 	if !parseUserInput(w, r, &request) {
 		return
 	}
@@ -113,7 +113,7 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 
 //-> /sub/add
 func subscribe(w http.ResponseWriter, r *http.Request) {
-	var request subscriptionRequest
+	var request models.SubscriptionRequest
 
 	if !parseUserInput(w, r, &request) {
 		return
@@ -219,7 +219,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response := subscriptionResponse{
+		response := models.SubscriptionResponse{
 			SubscriptionID: subs.SubscriptionID,
 			Name:           source.Name,
 			Mode:           source.Mode,
@@ -234,7 +234,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 //Sources ------------------------------
 //-> /source/create
 func createSource(w http.ResponseWriter, r *http.Request) {
-	var request sourceAddRequest
+	var request models.SourceAddRequest
 	if !parseUserInput(w, r, &request) {
 		return
 	}
@@ -305,7 +305,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, ResponseSuccess, "", sourceAddResponse{
+	sendResponse(w, ResponseSuccess, "", models.SourceAddResponse{
 		Secret:   source.Secret,
 		SourceID: source.SourceID,
 	})
@@ -313,7 +313,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 //-> /sources
 func listSources(w http.ResponseWriter, r *http.Request) {
-	var request sourceRequest
+	var request models.SourceRequest
 
 	if !parseUserInput(w, r, &request) {
 		return
@@ -335,7 +335,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 
 	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
-	var response listSourcesResponse
+	var response models.ListSourcesResponse
 	if len(request.SourceID) == 0 {
 		sources, err := models.GetSourcesForUser(db, user.Pkid)
 		if err != nil {
@@ -343,7 +343,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response = listSourcesResponse{
+		response = models.ListSourcesResponse{
 			Sources: sources,
 		}
 
@@ -362,7 +362,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		response = listSourcesResponse{
+		response = models.ListSourcesResponse{
 			Sources: []models.Source{*source},
 		}
 	}
@@ -386,7 +386,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request sourceRequest
+	var request models.SourceRequest
 	if !parseUserInput(w, r, &request) {
 		return
 	}
@@ -471,7 +471,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 //User functions ------------------------------
 //-> /user/login
 func login(w http.ResponseWriter, r *http.Request) {
-	var request credentialRequest
+	var request models.CredentialRequest
 
 	if !parseUserInput(w, r, &request) {
 		return
@@ -497,7 +497,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	<-after
 
 	if success {
-		sendResponse(w, ResponseSuccess, "", loginResponse{
+		sendResponse(w, ResponseSuccess, "", models.LoginResponse{
 			Token: token,
 		})
 	} else {
@@ -512,7 +512,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request credentialRequest
+	var request models.CredentialRequest
 
 	if !parseUserInput(w, r, &request) {
 		return
