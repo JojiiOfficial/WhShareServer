@@ -19,7 +19,7 @@ type RetryService struct {
 	db *dbhelper.DBhelper
 
 	handlerInterval time.Duration
-	callback        models.NotifyCallback
+	Callback        models.NotifyCallback
 }
 
 //Retry retries after some time
@@ -31,18 +31,13 @@ type Retry struct {
 }
 
 //NewRetryService create new retryService
-func NewRetryService(db *dbhelper.DBhelper, conf *models.ConfigStruct, callback models.NotifyCallback) *RetryService {
+func NewRetryService(db *dbhelper.DBhelper, conf *models.ConfigStruct) *RetryService {
 	return &RetryService{
 		RetryList:       make(map[uint32]*Retry),
 		RetryTimes:      conf.Server.Retries.RetryTimes,
 		handlerInterval: conf.Server.Retries.RetryInterval,
 		db:              db,
-		callback:        callback,
 	}
-}
-
-func (retryService *RetryService) calcNextRetryTime(retry *Retry) {
-	retry.NextRetry = time.Now().Add(retryService.RetryTimes[retry.TryNr])
 }
 
 //Add adds a subscription to the retryService
@@ -67,6 +62,16 @@ func (retryService *RetryService) Remove(subscriptionPK uint32) {
 	if _, ok := retryService.RetryList[subscriptionPK]; ok {
 		delete(retryService.RetryList, subscriptionPK)
 	}
+}
+
+//Start starts the retryService
+func (retryService *RetryService) Start() {
+	go (func() {
+		for {
+			time.Sleep(retryService.handlerInterval)
+			retryService.handle()
+		}
+	})()
 }
 
 func (retryService *RetryService) handle() {
@@ -107,29 +112,9 @@ func (retry *Retry) do(subsPK uint32, retryService *RetryService) {
 
 	log.Debug("Doing retry")
 
-	go subscription.Notify(retryService.db, webhook, source, retryService.callback)
+	go subscription.Notify(retryService.db, webhook, source, retryService.Callback)
 }
 
-//Start starts the retryService
-func (retryService *RetryService) Start() {
-	go (func() {
-		for {
-			time.Sleep(retryService.handlerInterval)
-			retryService.handle()
-		}
-	})()
-}
-
-//LogError returns true on error
-func LogError(err error, context ...map[string]interface{}) bool {
-	if err == nil {
-		return false
-	}
-
-	if len(context) > 0 {
-		log.WithFields(context[0]).Error(err.Error())
-	} else {
-		log.Error(err.Error())
-	}
-	return true
+func (retryService *RetryService) calcNextRetryTime(retry *Retry) {
+	retry.NextRetry = time.Now().Add(retryService.RetryTimes[retry.TryNr])
 }

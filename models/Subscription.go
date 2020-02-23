@@ -34,7 +34,10 @@ type Subscription struct {
 }
 
 //TableSubscriptions the tableName for subscriptions
-const TableSubscriptions = "Subscriptions"
+const (
+	TableSubscriptions = "Subscriptions"
+	TableModes         = "Modes"
+)
 
 //NotifyAllSubscriber for a given webhook
 func NotifyAllSubscriber(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, source *Source, callback NotifyCallback) {

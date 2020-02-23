@@ -1,4 +1,4 @@
-package main
+package constants
 
 //StrToMode string to mode
 var StrToMode = map[string]uint8{

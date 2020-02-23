@@ -17,12 +17,18 @@ import (
 
 //TODO make more beautiful
 
+//Services
 var (
-	retryService *services.RetryService
-	currIP       string
+	retryService     *services.RetryService
+	cleanService     *services.CleanupService
+	ipRefreshService *services.IPRefreshService
 )
 
-func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
+var (
+	currIP string
+)
+
+func runCmd(config *models.ConfigStruct) {
 	log.Info("Starting version " + version)
 
 	if config.Server.BogonAsCallback {
@@ -30,14 +36,10 @@ func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 	}
 
 	//initializing exit callback
-	ctx := initExitCallback(dab)
+	ctx := initExitCallback(db)
 	defer goodbye.Exit(ctx, -1)
 
-	//creating new router
-	router := NewRouter()
-
 	//Setting up database
-	db = dab
 	db.SetErrHook(func(err error, query, prefix string) {
 		logMessage := prefix + query + ": " + err.Error()
 
@@ -52,26 +54,24 @@ func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 		ReturnNilOnErr: false,
 	})
 
-	c := make(chan string, 1)
-	go (func() {
-		c <- getOwnIP()
-	})()
+	//creating new router
+	router := NewRouter()
 
-	//Starting services
-
-	//Create and start retryService
-	retryService = services.NewRetryService(db, config, subCB{retryService: retryService})
+	//Start retryService
+	retryService = services.NewRetryService(db, config)
+	retryService.Callback = subCB{retryService: retryService}
 	retryService.Start()
 
-	//Start webhook cleaner
-	startWebhookCleaner(db)
+	//Create cleanupService
+	cleanService = services.NewCleanupService(db)
 
-	currIP = <-c
-	if !isIPv4(currIP) {
-		log.Fatalf("Error validating IP address! '%s' Exiting\n", currIP)
-	} else {
-		log.Debugf("Servers IP address is '%s'\n", currIP)
+	//Create IPRefreshService
+	ipRefreshService = services.NewIPRefreshService(db)
+	if !ipRefreshService.Init() {
+		log.Fatalf("Error validating IP address! '%s' Exiting\n", ipRefreshService.IP)
+		return
 	}
+	log.Debugf("Servers IP address is '%s'\n", ipRefreshService.IP)
 
 	//Start the WebServer
 	startWebServer(router, config)
@@ -81,7 +81,9 @@ func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 	for {
 		resetUsageService(db)
 		time.Sleep(time.Hour)
-		updateCurrIP()
+
+		cleanService.Tick()
+		ipRefreshService.Tick()
 	}
 }
 
@@ -118,15 +120,6 @@ func resetUsageService(db *dbhelper.DBhelper) {
 	}
 }
 
-func updateCurrIP() {
-	//Update IP address every hour
-	cip := getOwnIP()
-	if cip != currIP && isIPv4(cip) {
-		log.Infof("Server got new IP address %s\n", cip)
-		currIP = cip
-	}
-}
-
 func startWebServer(router *mux.Router, config *models.ConfigStruct) {
 	//Start HTTPS if enabled
 	if config.Webserver.HTTPS.Enabled {
@@ -157,15 +150,4 @@ func initExitCallback(db *dbhelper.DBhelper) context.Context {
 		}
 	})
 	return ctx
-}
-
-//A goroutine which deletes every hour unused webhooks
-func startWebhookCleaner(dba *dbhelper.DBhelper) {
-	log.Info("Start cleaner")
-	go (func(db *dbhelper.DBhelper) {
-		for {
-			deleteOldHooks(db)
-			time.Sleep(1 * time.Hour)
-		}
-	})(dba)
 }

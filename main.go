@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/constants"
 	"github.com/JojiiOfficial/WhShareServer/models"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -16,7 +17,7 @@ const version = "0.21.7a"
 
 var (
 	app         = kingpin.New("server", "A Rest server")
-	appLogLevel = app.Flag("log-level", "Enable debug mode").HintOptions(LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').Default(LogLevels[2]).String()
+	appLogLevel = app.Flag("log-level", "Enable debug mode").HintOptions(constants.LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').Default(constants.LogLevels[2]).String()
 	appNoColor  = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
 	appYes      = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
 	appCfgFile  = app.
@@ -86,17 +87,17 @@ func main() {
 
 	//set app logLevel
 	switch *appLogLevel {
-	case LogLevels[0]:
+	case constants.LogLevels[0]:
 		//Debug
 		log.SetLevel(log.DebugLevel)
 		isDebug = true
-	case LogLevels[1]:
+	case constants.LogLevels[1]:
 		//Info
 		log.SetLevel(log.InfoLevel)
-	case LogLevels[2]:
+	case constants.LogLevels[2]:
 		//Warning
 		log.SetLevel(log.WarnLevel)
-	case LogLevels[3]:
+	case constants.LogLevels[3]:
 		//Error
 		log.SetLevel(log.ErrorLevel)
 	default:
@@ -109,13 +110,13 @@ func main() {
 	//Server --------------------
 	case serverCmdStart.FullCommand():
 		{
-			runCmd(config, db)
+			runCmd(config)
 		}
 	case benchCmd.FullCommand():
 		{
 			//ToDo enchant the bench cmd
 			start := time.Now()
-			sessions, err := getAllSessions(db)
+			sessions, err := models.GetAllSessions(db)
 			fmt.Printf("Getting all %d sessions took %s\n", len(sessions), time.Now().Sub(start).String())
 			if err != nil {
 				LogError(err)

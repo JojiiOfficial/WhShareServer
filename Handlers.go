@@ -12,6 +12,7 @@ import (
 
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/constants"
 	"github.com/JojiiOfficial/WhShareServer/models"
 	"github.com/gorilla/mux"
 )
@@ -621,7 +622,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			//Delete in config specified json objects
-			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[ModeToString[source.Mode]], false)
+			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[constants.ModeToString[source.Mode]], false)
 			if err != nil {
 				LogError(err, log.Fields{
 					"msg": "Error filtering JSON!",

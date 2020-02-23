@@ -1,16 +1,40 @@
 package main
 
 import (
-	"github.com/JojiiOfficial/WhShareServer/models"
+	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
-	log "github.com/sirupsen/logrus"
+	"github.com/JojiiOfficial/WhShareServer/models"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-//Tables
-const (
-	TableModes = "Modes"
-)
+func connectDB(config *models.ConfigStruct) (*dbhelper.DBhelper, error) {
+	log.Debug("Connecting to DB")
+	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
+		config.Server.Database.Username,
+		config.Server.Database.Pass,
+		config.Server.Database.Host,
+		strconv.Itoa(config.Server.Database.DatabasePort),
+		config.Server.Database.Database,
+	)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("Connected successfully")
+
+	//Only debugMode if logLevel is debug
+	db.Options.Debug = isDebug
+
+	db.Options.UseColors = !(*appNoColor)
+	return db, updateDB(db)
+}
+
+func updateDB(db *dbhelper.DBhelper) error {
+	db.AddQueryChain(getInitSQL())
+	return db.RunUpdate()
+}
 
 func getInitSQL() dbhelper.QueryChain {
 	return dbhelper.QueryChain{
@@ -51,7 +75,7 @@ func getInitSQL() dbhelper.QueryChain {
 			//Modes
 			dbhelper.InitSQL{
 				Query:   "CREATE TABLE `%s` ( `modeID` TINYINT UNSIGNED NOT NULL, `name` text NOT NULL, PRIMARY KEY (`modeID`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-				FParams: []string{TableModes},
+				FParams: []string{models.TableModes},
 			},
 			dbhelper.InitSQL{
 				Query: "INSERT INTO `Modes` (`modeID`, `name`) VALUES ('0', 'Custom'), ('1', 'Gitlab'), ('2', 'Docker'), ('3', 'Github')",
@@ -59,7 +83,7 @@ func getInitSQL() dbhelper.QueryChain {
 			dbhelper.InitSQL{
 				//Create foreign key sources.mode -> modes.modeID
 				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`mode`) REFERENCES `%s` (`modeID`);",
-				FParams: []string{models.TableSources, models.TableSources, TableModes},
+				FParams: []string{models.TableSources, models.TableSources, models.TableModes},
 			},
 
 			//LoginSessions
@@ -97,8 +121,6 @@ func getInitSQL() dbhelper.QueryChain {
 
 // -------------------- Database QUERIES ----
 
-// ------> Selects
-
 func checkSubscriptionExitsts(db *dbhelper.DBhelper, sourceID uint32, callbackURL string) (bool, error) {
 	var c int
 	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE source=? AND callbackURL=?", []string{models.TableSubscriptions}, sourceID, callbackURL)
@@ -106,22 +128,6 @@ func checkSubscriptionExitsts(db *dbhelper.DBhelper, sourceID uint32, callbackUR
 		return false, err
 	}
 	return c > 0, nil
-}
-
-//Returns all sessions
-func getAllSessions(db *dbhelper.DBhelper) ([]string, error) {
-	var sessions []string
-	err := db.QueryRowsf(&sessions, "SELECT sessionToken FROM %s WHERE isValid=1", []string{models.TableLoginSession})
-	return sessions, err
-}
-
-//Delete webhooks which aren't used anymore
-func deleteOldHooks(db *dbhelper.DBhelper) {
-	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{models.TableWebhooks, models.TableWebhooks, models.TableSubscriptions, models.TableSubscriptions, models.TableWebhooks})
-	if err != nil {
-		LogError(err)
-	}
-	log.Info("Webhook cleanup done")
 }
 
 //Returns count of affected rows

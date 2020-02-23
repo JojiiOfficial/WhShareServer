@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -101,17 +100,6 @@ func LogError(err error, context ...map[string]interface{}) bool {
 		log.Error(err.Error())
 	}
 	return true
-}
-
-func getOwnIP() string {
-	resp, err := http.Get("https://ifconfig.me")
-	if err != nil {
-		log.Error(err.Error())
-		return ""
-	}
-
-	cnt, _ := ioutil.ReadAll(resp.Body)
-	return string(cnt)
 }
 
 func isIPv4(inp string) bool {
