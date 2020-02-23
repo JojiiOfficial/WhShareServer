@@ -12,11 +12,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gorilla/mux v1.7.4
 	github.com/jmoiron/sqlx v1.2.0 // indirect
-	github.com/karrick/godirwalk v1.15.3 // indirect
-	github.com/muesli/cache2go v0.0.0-20191019095710-4098a3aa8c94
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/thecodeteam/goodbye v0.0.0-20170927022442-a83968bda2d3
-	github.com/uudashr/gopkgs v2.0.1+incompatible // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
