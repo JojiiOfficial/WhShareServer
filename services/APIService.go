@@ -20,11 +20,11 @@ type APIService struct {
 }
 
 //NewAPIService create new API service
-func NewAPIService(db *dbhelper.DBhelper, config *models.ConfigStruct, callback models.SubscriberNotifyCallback) *APIService {
+func NewAPIService(db *dbhelper.DBhelper, config *models.ConfigStruct, ownIP *string, callback models.SubscriberNotifyCallback) *APIService {
 	return &APIService{
 		db:     db,
 		config: config,
-		router: handlers.NewRouter(db, config, callback),
+		router: handlers.NewRouter(db, config, ownIP, callback),
 	}
 }
 

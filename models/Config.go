@@ -42,7 +42,8 @@ type configServer struct {
 	AllowRegistration    bool `default:"false"`
 	BogonAsCallback      bool `default:"false"`
 	ServerHostAsCallback bool `default:"false"`
-	WorkerCount          int  `default:"8"`
+	BlocklistIPs         []string
+	WorkerCount          int `default:"8"`
 	Retries              configRetries
 }
 

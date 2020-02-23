@@ -72,30 +72,6 @@ func sendServerError(w http.ResponseWriter) {
 	sendError("internal server error", w, models.ServerError, 500)
 }
 
-//Return true if exit
-func validateCallbackURL(config *models.ConfigStruct, w http.ResponseWriter, callbackURL, ownIP string) bool {
-	//set addIP to server IP if serverHost as callback is disabled
-	addIP := ""
-	/*if !config.Server.ServerHostAsCallback {
-		addIP = ownIP
-		//TODO
-	}*/
-
-	//Check if ip is bogon IPs are allowed. If not check IP
-	isCallbackValid, err := isValidCallback(callbackURL, config.Server.BogonAsCallback, addIP)
-	if LogError(err) {
-		sendServerError(w)
-		return false
-	}
-
-	if !isCallbackValid {
-		sendError("ip reserved", w, "CallbackURL points to reserved IP, is Servers IP or can't lookup host", 422)
-		return false
-	}
-
-	return true
-}
-
 //LogError returns true on error
 func LogError(err error, context ...map[string]interface{}) bool {
 	if err == nil {

@@ -76,9 +76,7 @@ func startAPI() {
 	log.Debugf("Servers IP address is '%s'\n", ipRefreshService.IP)
 
 	//Create the APIService and start it
-	apiService = services.NewAPIService(db, config, subCB{
-		retryService: retryService,
-	})
+	apiService = services.NewAPIService(db, config, &ipRefreshService.IP, subCB{retryService: retryService})
 	apiService.Start()
 
 	//Startup done

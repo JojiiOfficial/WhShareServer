@@ -13,6 +13,7 @@ import (
 
 type handlerData struct {
 	config             *models.ConfigStruct
+	ownIP              *string
 	subscriberCallback models.SubscriberNotifyCallback
 }
 
@@ -52,7 +53,7 @@ var routes = Routes{
 }
 
 //NewRouter create new router
-func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, callback models.SubscriberNotifyCallback) *mux.Router {
+func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, ownIP *string, callback models.SubscriberNotifyCallback) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	for _, route := range routes {
 		router.
@@ -62,6 +63,7 @@ func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, callback mode
 			Handler(RouteHandler(db, &handlerData{
 				config:             config,
 				subscriberCallback: callback,
+				ownIP:              ownIP,
 			}, route.HandlerFunc, route.Name))
 	}
 	return router

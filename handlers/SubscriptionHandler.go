@@ -64,8 +64,7 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 		return
 	}
 
-	//TODO GET IP
-	if !validateCallbackURL(handler.config, w, request.CallbackURL, "") {
+	if !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
 		return
 	}
 
@@ -164,8 +163,7 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 		userID = user.Pkid
 	}
 
-	//TODO get own IP
-	if !validateCallbackURL(handler.config, w, request.CallbackURL, "") {
+	if !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
 		return
 	}
 
@@ -221,4 +219,32 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 	} else {
 		sendResponse(w, models.ResponseError, models.ActionNotAllowed, nil)
 	}
+}
+
+//Get lits of disallowed IPs
+func genIPBlocklist(ownIP *string, config *models.ConfigStruct) []string {
+	list := []string{}
+	if ownIP != nil {
+		list = append(list, *ownIP)
+	}
+	list = append(list, config.Server.BlocklistIPs...)
+
+	return list
+}
+
+//Return true if exit
+func validateCallbackURL(config *models.ConfigStruct, w http.ResponseWriter, callbackURL string, balckListedIPs []string) bool {
+	//Check if ip is bogon IPs are allowed. If not check IP
+	isCallbackValid, err := isValidCallback(callbackURL, config.Server.BogonAsCallback, balckListedIPs...)
+	if LogError(err) {
+		sendServerError(w)
+		return false
+	}
+
+	if !isCallbackValid {
+		sendError("ip reserved", w, "CallbackURL points to reserved IP, is Servers IP or can't lookup host", 422)
+		return false
+	}
+
+	return true
 }
