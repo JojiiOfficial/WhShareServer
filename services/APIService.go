@@ -101,29 +101,46 @@ func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct) *mux.Router {
 //RouteHandler logs stuff
 func RouteHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, inner RouteFunction, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Info(r.Method + " " + r.RequestURI + " " + name)
-
-		headerSize := getHeaderSize(r.Header)
-		//Send error if header are too big. MaxHeaderLength is stored in b
-		if headerSize > uint32(config.Webserver.MaxHeaderLength) {
-			//Send error response
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			fmt.Fprint(w, "413 request too large")
-
-			//Log
-			log.Warnf("Got request with %db headers. Maximum allowed are %db\n", headerSize, config.Webserver.MaxHeaderLength)
-			return
-		}
+		log.Infof("[%s] %s\n", r.Method, name)
 
 		start := time.Now()
 
-		//Call actual handler
-		inner(db, config, w, r)
-		dur := time.Since(start)
-		if dur < 1500*time.Millisecond {
-			log.Debugf("Duration: %s\n", dur.String())
-		} else if dur > 1500*time.Millisecond {
-			log.Warningf("Duration: %s\n", dur.String())
+		if validateHeader(config, w, r) {
+			return
 		}
+
+		//Process request
+		inner(db, config, w, r)
+
+		//Print duration of processing
+		printProcessingDuration(start)
 	})
+}
+
+//Prints the duration of handling the function
+func printProcessingDuration(startTime time.Time) {
+	dur := time.Since(startTime)
+
+	if dur < 1500*time.Millisecond {
+		log.Debugf("Duration: %s\n", dur.String())
+	} else if dur > 1500*time.Millisecond {
+		log.Warningf("Duration: %s\n", dur.String())
+	}
+}
+
+//Return true on error
+func validateHeader(config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) bool {
+	headerSize := getHeaderSize(r.Header)
+
+	//Send error if header are too big. MaxHeaderLength is stored in b
+	if headerSize > uint32(config.Webserver.MaxHeaderLength) {
+		//Send error response
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		fmt.Fprint(w, "413 request too large")
+
+		log.Warnf("Got request with %db headers. Maximum allowed are %db\n", headerSize, config.Webserver.MaxHeaderLength)
+		return true
+	}
+
+	return false
 }
