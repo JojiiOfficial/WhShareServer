@@ -5,6 +5,9 @@ FROM golang:1.13.8-alpine as builder1
 ENV GO111MODULE=on
 WORKDIR /app/whshare
 
+# install required package(s)
+RUN apk add --no-cache git
+
 # Copy dependency list
 COPY go.mod .
 COPY go.sum .
@@ -15,6 +18,8 @@ COPY ./*.go ./
 COPY ./models/*.go ./models/
 COPY ./constants/*.go ./constants/
 COPY ./services/*.go ./services/
+COPY ./handlers/*.go ./handlers/
+COPY ./storage/*.go ./storage/
 
 # Compile
 RUN go build -o main
