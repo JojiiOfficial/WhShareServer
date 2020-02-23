@@ -11,9 +11,9 @@ import (
 
 //CreateSource creates a source
 //-> /source/create
-func CreateSource(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.SourceAddRequest
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
 
@@ -91,10 +91,10 @@ func CreateSource(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.Res
 
 //ListSources lists sources
 //-> /sources
-func ListSources(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func ListSources(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.SourceRequest
 
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
 
@@ -151,7 +151,7 @@ func ListSources(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.Resp
 
 //UpdateSource updates a source
 //-> /source/update/{action}
-func UpdateSource(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	action := vars["action"]
 	actions := []string{
@@ -167,7 +167,7 @@ func UpdateSource(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.Res
 	}
 
 	var request models.SourceRequest
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
 

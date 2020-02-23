@@ -12,13 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//NotifyCallback callback for Notify
-type NotifyCallback interface {
-	OnSuccess(Subscription)
-	OnError(Subscription, Source, Webhook)
-	OnUnsubscribe(Subscription)
-}
-
 //Subscription the subscription a user made
 type Subscription struct {
 	PkID           uint32 `db:"pk_id" orm:"pk,ai"`

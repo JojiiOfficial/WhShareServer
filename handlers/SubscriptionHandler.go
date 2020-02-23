@@ -11,9 +11,9 @@ import (
 
 //Unsubscribe unsubscribe handler
 //-> /sub/remove
-func Unsubscribe(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func Unsubscribe(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.UnsubscribeRequest
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
 	if len(request.SubscriptionID) != 32 {
@@ -38,9 +38,9 @@ func Unsubscribe(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.Resp
 
 //UpdateCallbackURL update subscription url handler
 //-> /sub/updateCallbackURL
-func UpdateCallbackURL(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.SubscriptionUpdateCallbackRequest
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handler.config, w, r, &request) {
 		return
 	}
 
@@ -65,7 +65,7 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, config *models.ConfigStruct, w htt
 	}
 
 	//TODO GET IP
-	if !validateCallbackURL(config, w, request.CallbackURL, "") {
+	if !validateCallbackURL(handler.config, w, request.CallbackURL, "") {
 		return
 	}
 
@@ -103,10 +103,10 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, config *models.ConfigStruct, w htt
 
 //Subscribe subscription handler
 //-> /sub/add
-func Subscribe(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.SubscriptionRequest
 
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handler.config, w, r, &request) {
 		return
 	}
 
@@ -165,7 +165,7 @@ func Subscribe(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.Respon
 	}
 
 	//TODO get own IP
-	if !validateCallbackURL(config, w, request.CallbackURL, "") {
+	if !validateCallbackURL(handler.config, w, request.CallbackURL, "") {
 		return
 	}
 

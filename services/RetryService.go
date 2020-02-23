@@ -54,7 +54,7 @@ func (retryService *RetryService) Add(subscriptionPK, sourcePK, WebhookPK uint32
 	retryService.calcNextRetryTime(retry)
 	retryService.RetryList[subscriptionPK] = retry
 
-	log.Debug("Add new retry to list. Next retry:", retry.NextRetry.Format(time.Stamp))
+	log.Debug("Add new retry to list. Next retry: ", retry.NextRetry.Format(time.Stamp))
 }
 
 //Remove removes a subscription from the retryService

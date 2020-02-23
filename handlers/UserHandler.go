@@ -12,10 +12,10 @@ import (
 
 //Login login handler
 //-> /user/login
-func Login(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func Login(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.CredentialRequest
 
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
 	if isStructInvalid(request) || len(request.Password) != 128 {
@@ -49,15 +49,15 @@ func Login(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWr
 
 //Register register handler
 //-> /user/create
-func Register(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
-	if !config.Server.AllowRegistration {
+func Register(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
+	if !handlerData.config.Server.AllowRegistration {
 		sendResponse(w, models.ResponseError, "Server doesn't accept registrations", nil, 403)
 		return
 	}
 
 	var request models.CredentialRequest
 
-	if !parseUserInput(config, w, r, &request) {
+	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
 

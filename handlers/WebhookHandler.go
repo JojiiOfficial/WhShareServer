@@ -16,7 +16,7 @@ import (
 
 //WebhookHandler handler for incoming webhooks
 //-> /post/webhook
-func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
+func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sourceID := vars["sourceID"]
 	secret := vars["secret"]
@@ -52,7 +52,7 @@ func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.R
 			})()
 
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
-			if isHeaderBlocklistetd(req.Header, &config.Server.WebhookBlacklist.HeaderValues) {
+			if isHeaderBlocklistetd(req.Header, &handlerData.config.Server.WebhookBlacklist.HeaderValues) {
 				log.Warnf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
 
 				msg = "error"
@@ -71,7 +71,7 @@ func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.R
 			}
 
 			//Read payload body from webhook
-			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, config.Webserver.MaxPayloadBodyLength))
+			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, handlerData.config.Webserver.MaxPayloadBodyLength))
 			if err != nil {
 				LogError(err)
 				msg = "error reading content"
@@ -94,7 +94,7 @@ func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.R
 			}
 
 			//Delete in config specified json objects
-			payload, err = gaw.JSONRemoveItems(payload, config.Server.WebhookBlacklist.JSONObjects[constants.ModeToString[source.Mode]], false)
+			payload, err = gaw.JSONRemoveItems(payload, handlerData.config.Server.WebhookBlacklist.JSONObjects[constants.ModeToString[source.Mode]], false)
 			if err != nil {
 				LogError(err, log.Fields{
 					"msg": "Error filtering JSON!",
@@ -118,8 +118,7 @@ func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.R
 			}
 			webhook.Insert(db)
 
-			//TODO notify subscriber
-			//models.NotifyAllSubscriber(db, config, webhook, source, subCB{retryService: retryService})
+			handlerData.subscriberCallback.OnWebhookReceive(webhook, source)
 		})(r)
 
 		if <-c {

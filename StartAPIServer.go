@@ -15,15 +15,11 @@ import (
 
 //Services
 var (
-	retryService      *services.RetryService
-	cleanService      *services.CleanupService
-	ipRefreshService  *services.IPRefreshService
-	usageResetService *services.ResetUsageService
-	apiService        *services.APIService
-)
-
-var (
-	currIP string
+	retryService      *services.RetryService      //Handle retries
+	cleanService      *services.CleanupService    //Handle old webhooks
+	ipRefreshService  *services.IPRefreshService  //Updates external IP
+	usageResetService *services.ResetUsageService //Resets user usage each month
+	apiService        *services.APIService        //Handle endpoints
 )
 
 func startAPI() {
@@ -80,7 +76,9 @@ func startAPI() {
 	log.Debugf("Servers IP address is '%s'\n", ipRefreshService.IP)
 
 	//Create the APIService and start it
-	apiService = services.NewAPIService(db, config)
+	apiService = services.NewAPIService(db, config, subCB{
+		retryService: retryService,
+	})
 	apiService.Start()
 
 	//Startup done
@@ -110,7 +108,7 @@ func initExitCallback(db *dbhelper.DBhelper) context.Context {
 	return ctx
 }
 
-//Callback for notifications
+//Callbacks for webhooks
 type subCB struct {
 	retryService *services.RetryService
 }
@@ -131,4 +129,8 @@ func (subCB subCB) OnError(subscription models.Subscription, source models.Sourc
 
 func (subCB subCB) OnUnsubscribe(subscription models.Subscription) {
 	subscription.Remove(db)
+}
+
+func (subCB subCB) OnWebhookReceive(webhook *models.Webhook, source *models.Source) {
+	models.NotifyAllSubscriber(db, config, webhook, source, subCB)
 }
