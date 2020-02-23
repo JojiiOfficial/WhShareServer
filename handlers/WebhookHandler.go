@@ -15,7 +15,7 @@ import (
 )
 
 //WebhookHandler handler for incoming webhooks
-//-> /get/webhook
+//-> /post/webhook
 func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sourceID := vars["sourceID"]
@@ -71,7 +71,7 @@ func WebhookHandler(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.R
 			}
 
 			//Read payload body from webhook
-			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, 100000))
+			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, config.Webserver.MaxPayloadBodyLength))
 			if err != nil {
 				LogError(err)
 				msg = "error reading content"

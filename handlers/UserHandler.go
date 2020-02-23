@@ -11,6 +11,7 @@ import (
 )
 
 //Login login handler
+//-> /user/login
 func Login(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
 	var request models.CredentialRequest
 
@@ -47,6 +48,7 @@ func Login(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWr
 }
 
 //Register register handler
+//-> /user/create
 func Register(db *dbhelper.DBhelper, config *models.ConfigStruct, w http.ResponseWriter, r *http.Request) {
 	if !config.Server.AllowRegistration {
 		sendResponse(w, models.ResponseError, "Server doesn't accept registrations", nil, 403)

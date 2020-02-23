@@ -4,6 +4,8 @@ github.com/JojiiOfficial/GoAw v0.0.0-20200218161509-a4d305798ee3 h1:OoOfv+/ci2KU
 github.com/JojiiOfficial/GoAw v0.0.0-20200218161509-a4d305798ee3/go.mod h1:F2feBgTQq0So6KHFDU2VadutvCWKklaYQwWCic/XThQ=
 github.com/JojiiOfficial/GoDBHelper v1.0.4 h1:QA4CslooHTAzonwrWMHuWE/UA3wsoiEpPFPauufolBY=
 github.com/JojiiOfficial/GoDBHelper v1.0.4/go.mod h1:aT1lRW2F30+K2XM0QoYlCsT4m6mgOPS24yJe4S6r2+8=
+github.com/JojiiOfficial/GoDBHelper v1.0.5 h1:uPHhoXmjYFT8RZOrbwPk8qPUoMAu0u5NvdfbgGkA9L8=
+github.com/JojiiOfficial/GoDBHelper v1.0.5/go.mod h1:aT1lRW2F30+K2XM0QoYlCsT4m6mgOPS24yJe4S6r2+8=
 github.com/JojiiOfficial/configService v0.0.0-20200219132202-6e71512e2e28 h1:nYoIExG+Z/gSLS9Jbpu6lnrh+m6e9gTxQfGhanTsExE=
 github.com/JojiiOfficial/configService v0.0.0-20200219132202-6e71512e2e28/go.mod h1:j1kHFoYWAbLRPE5nyAAtODwUc0xwd2+ifPZ3uCAgv/g=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 h1:JYp7IbQjafoB+tBA3gMyHYHrpOtNuDiK/uB5uXxq5wM=

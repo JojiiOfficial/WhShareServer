@@ -25,7 +25,7 @@ const TableSources = "Sources"
 //GetSourceFromSourceID get source from sourceID
 func GetSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, error) {
 	var source Source
-	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE sourceID=? LIMIT 1", []string{TableSources}, sourceID)
+	err := db.WithHook(dbhelper.NoHook).QueryRowf(&source, "SELECT * FROM %s WHERE sourceID=? LIMIT 1", []string{TableSources}, sourceID)
 	if err != nil {
 		return nil, err
 	}

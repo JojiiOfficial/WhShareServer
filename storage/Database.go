@@ -9,7 +9,7 @@ import (
 	"github.com/JojiiOfficial/WhShareServer/models"
 )
 
-//ConnectDB connects to DB
+//ConnectDB connects to MySQL
 func ConnectDB(config *models.ConfigStruct, isDebug, nocolor bool) (*dbhelper.DBhelper, error) {
 	log.Debug("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
@@ -19,15 +19,17 @@ func ConnectDB(config *models.ConfigStruct, isDebug, nocolor bool) (*dbhelper.DB
 		strconv.Itoa(config.Server.Database.DatabasePort),
 		config.Server.Database.Database,
 	)
+
 	if err != nil {
 		return nil, err
 	}
+
 	log.Info("Connected successfully")
 
 	//Only debugMode if logLevel is debug
 	db.Options.Debug = isDebug
-
 	db.Options.UseColors = !nocolor
+
 	return db, updateDB(db)
 }
 
