@@ -11,6 +11,7 @@ RUN go mod download
 # Stage 2 build binary
 FROM golang:1.13.6-alpine as builder2
 WORKDIR /app/WhShareServer
+RUN apk add --no-cache git
 
 COPY --from=builder1 /app/WhShareServer/ .
 COPY ./*.go ./
