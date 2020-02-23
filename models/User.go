@@ -5,6 +5,8 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
+//TODO clean up
+
 //User user in db
 type User struct {
 	Pkid       uint32 `db:"pk_id" orm:"pk,ai"`

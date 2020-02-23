@@ -15,11 +15,12 @@ import (
 	"github.com/thecodeteam/goodbye"
 )
 
+//TODO make more beautiful
+
 var (
 	retryService *services.RetryService
+	currIP       string
 )
-
-var currIP string
 
 func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 	log.Info("Starting version " + version)

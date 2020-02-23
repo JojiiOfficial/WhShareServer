@@ -8,6 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//TODO move to models package
+
 type credentialRequest struct {
 	Username string `json:"username"`
 	Password string `json:"pass"`

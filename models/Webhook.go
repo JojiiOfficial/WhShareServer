@@ -4,6 +4,8 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
+//TODO clean up
+
 //Webhook the actual webhook from a server
 type Webhook struct {
 	PkID     uint32 `db:"pk_id" orm:"pk,ai"`

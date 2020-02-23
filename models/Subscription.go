@@ -12,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//TODO clean up
+
 //NotifyCallback callback for Notify
 type NotifyCallback interface {
 	OnSuccess(Subscription)

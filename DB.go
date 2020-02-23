@@ -10,6 +10,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+//TODO merge with Queries.go
+
 func connectDB(config *models.ConfigStruct) (*dbhelper.DBhelper, error) {
 	log.Debug("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(

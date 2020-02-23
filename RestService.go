@@ -9,6 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//TODO move to services package
+
 //Route for REST
 type Route struct {
 	Name        string

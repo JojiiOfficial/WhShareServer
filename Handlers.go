@@ -18,6 +18,8 @@ import (
 
 const defaultMaxPayloadSize = uint(150)
 
+//TODO move to new package `functions`
+
 //Subscriptions ------------------------------
 //-> /sub/remove
 func unsubscribe(w http.ResponseWriter, r *http.Request) {

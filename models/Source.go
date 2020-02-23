@@ -5,6 +5,8 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
+//TODO clean up
+
 //Source a webhook source
 type Source struct {
 	PkID         uint32 `db:"pk_id" orm:"pk,ai" json:"-"`
