@@ -21,8 +21,8 @@ func NewResetUsageService(db *dbhelper.DBhelper) *ResetUsageService {
 }
 
 //Tick runs the action of the service
-func (service ResetUsageService) Tick() <-chan bool {
-	c := make(chan bool)
+func (service ResetUsageService) Tick() <-chan error {
+	c := make(chan error)
 
 	go (func() {
 		start := time.Now()
@@ -34,7 +34,7 @@ func (service ResetUsageService) Tick() <-chan bool {
 			log.Infof("Reset resource usage for %d user(s)", n)
 		}
 
-		c <- true
+		c <- err
 	})()
 
 	return c

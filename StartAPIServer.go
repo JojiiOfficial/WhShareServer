@@ -27,7 +27,7 @@ var (
 	currIP string
 )
 
-func runCmd(config *models.ConfigStruct) {
+func startAPI() {
 	log.Info("Starting version " + version)
 
 	if config.Server.BogonAsCallback {
@@ -63,10 +63,17 @@ func runCmd(config *models.ConfigStruct) {
 
 	//Create cleanupService
 	cleanService = services.NewCleanupService(db)
+	//If cleaning fails, exit
+	if err := <-cleanService.Tick(); err != nil {
+		log.Fatal(err)
+	}
 
-	//Create usageResetService
+	//Create usageResetService and reset the users
 	usageResetService = services.NewResetUsageService(db)
-	usageResetService.Tick()
+	//If resetting user usage fails, exit
+	if err := <-usageResetService.Tick(); err != nil {
+		log.Fatal(err)
+	}
 
 	//Create IPRefreshService
 	ipRefreshService = services.NewIPRefreshService(db)
@@ -81,6 +88,7 @@ func runCmd(config *models.ConfigStruct) {
 
 	log.Info("Startup completed")
 
+	//Start loop to tick the services
 	for {
 		time.Sleep(time.Hour)
 

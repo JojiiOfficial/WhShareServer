@@ -126,7 +126,7 @@ func main() {
 	//Server --------------------
 	case serverCmdStart.FullCommand():
 		{
-			runCmd(config)
+			startAPI()
 		}
 	case benchCmd.FullCommand():
 		{
