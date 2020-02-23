@@ -6,11 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/models"
 	"github.com/gorilla/mux"
 )
 
@@ -28,13 +30,13 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subscription, err := getSubscriptionBySubsID(db, request.SubscriptionID)
+	subscription, err := models.GetSubscriptionBySubsID(db, request.SubscriptionID)
 	if err != nil {
 		sendServerError(w)
 		return
 	}
 
-	err = subscription.remove(db, retryService)
+	err = subscription.Remove(db)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -77,17 +79,17 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 	//Determine the user
 	userID := uint32(1)
 	if len(token) > 0 {
-		user, err := getUserBySession(db, token)
+		user, err := models.GetUserBySession(db, token)
 		if err != nil {
 			LogError(err)
 			userID = 1
 		} else {
 			userID = user.Pkid
-			go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+			go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 		}
 	}
 
-	subscription, err := getSubscriptionBySubsID(db, request.SubscriptionID)
+	subscription, err := models.GetSubscriptionBySubsID(db, request.SubscriptionID)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -95,7 +97,7 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 
 	//Update only if it's users source or user not logged in and sourceID matches
 	if (userID > 1 && subscription.UserID == userID) || subscription.UserID == 1 {
-		err = subscription.updateCallback(db, request.CallbackURL)
+		err = subscription.UpdateCallback(db, request.CallbackURL)
 		if err != nil {
 			sendServerError(w)
 		} else {
@@ -141,17 +143,17 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 	//Determine the user
 	userID := uint32(1)
-	var user *User
+	var user *models.User
 	var err error
 	if len(token) > 0 {
-		user, err = getUserBySession(db, token)
+		user, err = models.GetUserBySession(db, token)
 		if err != nil {
 			sendServerError(w)
 			return
 
 		}
-		go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
-		userSubscriptions, err := user.getSubscriptionCount(db)
+		go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
+		userSubscriptions, err := user.GetSubscriptionCount(db)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -173,7 +175,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//The source to get subbed
-	source, err := getSourceFromSourceID(db, request.SourceID)
+	source, err := models.GetSourceFromSourceID(db, request.SourceID)
 	if err != nil {
 		sendError("input missing", w, NotFoundError, 422)
 		return
@@ -181,7 +183,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 	var isSubscribed bool
 	if userID > 1 {
-		is, err := user.isSubscribedTo(db, source.PkID)
+		is, err := user.IsSubscribedTo(db, source.PkID)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -202,13 +204,13 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
-		subs := Subscription{
+		subs := models.Subscription{
 			Source:      source.PkID,
 			CallbackURL: request.CallbackURL,
 			UserID:      userID,
 		}
 
-		err := subs.insert(db)
+		err := subs.Insert(db)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -238,13 +240,13 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := getUserBySession(db, request.Token)
+	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
 
-	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	//Check if user is allowed to create sources
 	if request.Private && user.Role.MaxPrivSources == 0 {
@@ -255,7 +257,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scount, err := user.getSourceCount(db, request.Private)
+	scount, err := user.GetSourceCount(db, request.Private)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -275,7 +277,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Check if user already has a source with this name
-	nameExitst, err := user.hasSourceWithName(db, request.Name)
+	nameExitst, err := user.HasSourceWithName(db, request.Name)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -286,7 +288,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	source := &Source{
+	source := &models.Source{
 		Creator:     *user,
 		IsPrivate:   request.Private,
 		Name:        request.Name,
@@ -294,7 +296,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		Description: request.Description,
 	}
 
-	err = source.insert(db)
+	err = source.Insert(db)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -322,17 +324,17 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		request.SourceID = ""
 	}
 
-	user, err := getUserBySession(db, request.Token)
+	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
 
-	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	var response listSourcesResponse
 	if len(request.SourceID) == 0 {
-		sources, err := getSourcesForUser(db, user.Pkid)
+		sources, err := models.GetSourcesForUser(db, user.Pkid)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -343,7 +345,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		source, err := getSourceFromSourceID(db, request.SourceID)
+		source, err := models.GetSourceFromSourceID(db, request.SourceID)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -358,7 +360,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		}
 
 		response = listSourcesResponse{
-			Sources: []Source{*source},
+			Sources: []models.Source{*source},
 		}
 	}
 
@@ -390,15 +392,15 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := getUserBySession(db, request.Token)
+	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
 		sendError("Invalid token", w, InvalidTokenError, 403)
 		return
 	}
 
-	go user.updateIP(db, gaw.GetIPFromHTTPrequest(r))
+	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
-	source, err := getSourceFromSourceID(db, request.SourceID)
+	source, err := models.GetSourceFromSourceID(db, request.SourceID)
 	if err != nil {
 		if err.Error() == dbhelper.ErrNoRowsInResultSet {
 			//Source just not found if no rows in result set
@@ -421,17 +423,17 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	case actions[0]:
 		{
 			//delete
-			err = source.delete(db)
+			err = source.Delete(db)
 		}
 	case actions[1]:
 		{
 			//change description
-			err = source.update(db, "description", request.Content, true)
+			err = source.Update(db, "description", request.Content, true)
 		}
 	case actions[2]:
 		{
 			//rename
-			has, err := user.hasSourceWithName(db, request.Content)
+			has, err := user.HasSourceWithName(db, request.Content)
 			if err != nil {
 				sendServerError(w)
 				return
@@ -441,7 +443,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 				sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
 				return
 			}
-			err = source.update(db, "name", request.Content)
+			err = source.Update(db, "name", request.Content)
 		}
 	case actions[3]:
 		{
@@ -452,7 +454,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 				newVal = "0"
 				message = "public"
 			}
-			err = source.update(db, "private", newVal)
+			err = source.Update(db, "private", newVal)
 		}
 	}
 
@@ -480,11 +482,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, success, err := loginQuery(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
+	//Make the request take 1500ms
+	after := time.After(1500 * time.Millisecond)
+
+	token, success, err := models.LoginQuery(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
 		sendServerError(w)
 		return
 	}
+
+	<-after
 
 	if success {
 		sendResponse(w, ResponseSuccess, "", loginResponse{
@@ -513,7 +520,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := userExitst(db, request.Username)
+	exists, err := models.UserExists(db, request.Username)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -524,7 +531,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = insertUser(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
+	err = models.InsertUser(db, request.Username, gaw.SHA512(request.Password+request.Username), gaw.GetIPFromHTTPrequest(r))
 	if err != nil {
 		sendServerError(w)
 		return
@@ -544,7 +551,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	source, err := getSourceFromSourceID(db, sourceID)
+	source, err := models.GetSourceFromSourceID(db, sourceID)
 	if err != nil {
 		log.Warn("WebhookHandler - Source not found")
 		sendResponse(w, ResponseError, "404 Not found", nil, 404)
@@ -552,19 +559,15 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source.Secret == secret {
-		if !hookAntiSpamService.HandleHook(source) {
-			return
-		}
-
 		c := make(chan bool, 1)
 		log.Info("New webhook:", source.Name)
 		msg := "error"
 
 		go (func(req *http.Request) {
-			userChan := make(chan *User, 1)
+			userChan := make(chan *models.User, 1)
 			//Get source user
 			go (func() {
-				us, err := getUserByPK(db, source.CreatorID)
+				us, err := models.GetUserByPK(db, source.CreatorID)
 				if err != nil {
 					LogError(err)
 					userChan <- nil
@@ -630,16 +633,16 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 			//Update traffic and hookCallCount if not both unlimited
 			if user.Role.MaxHookCalls != -1 || user.Role.MaxTraffic != -1 {
-				user.addHookCall(db, reqTraffic)
+				user.AddHookCall(db, reqTraffic)
 			}
 
-			webhook := &Webhook{
+			webhook := &models.Webhook{
 				SourceID: source.PkID,
 				Headers:  headers,
 				Payload:  string(payload),
 			}
-			webhook.insert(db)
-			notifyAllSubscriber(db, webhook, source)
+			webhook.Insert(db)
+			models.NotifyAllSubscriber(db, config, webhook, source, subCB{})
 		})(r)
 
 		if <-c {

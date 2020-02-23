@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"os"
@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	gaw "github.com/JojiiOfficial/GoAw"
+	"github.com/JojiiOfficial/WhShareServer/constants"
 	"github.com/JojiiOfficial/configService"
+	log "github.com/sirupsen/logrus"
 )
 
 //ConfigStruct config for the server
@@ -67,8 +67,9 @@ type configHTTPstruct struct {
 	ListenAddress string `default:":80"`
 }
 
-func getDefaultConfig() string {
-	return path.Join(DataDir, DefaultConfigFile)
+//GetDefaultConfig gets the default config path
+func GetDefaultConfig() string {
+	return path.Join(constants.DataDir, constants.DefaultConfigFile)
 }
 
 //InitConfig inits the config
@@ -76,7 +77,7 @@ func getDefaultConfig() string {
 func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 	var config ConfigStruct
 	if len(confFile) == 0 {
-		confFile = getDefaultConfig()
+		confFile = GetDefaultConfig()
 	}
 
 	s, err := os.Stat(confFile)

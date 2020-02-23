@@ -1,20 +1,15 @@
 package main
 
 import (
-	gaw "github.com/JojiiOfficial/GoAw"
+	"github.com/JojiiOfficial/WhShareServer/models"
+
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	log "github.com/sirupsen/logrus"
 )
 
 //Tables
 const (
-	TableUser          = "User"
-	TableSources       = "Sources"
-	TableLoginSession  = "LoginSessions"
-	TableSubscriptions = "Subscriptions"
-	TableModes         = "Modes"
-	TableWebhooks      = "Webhooks"
-	TableRoles         = "Roles"
+	TableModes = "Modes"
 )
 
 func getInitSQL() dbhelper.QueryChain {
@@ -26,31 +21,31 @@ func getInitSQL() dbhelper.QueryChain {
 			dbhelper.InitSQL{
 				//Create role table
 				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `name` text NOT NULL, `maxPubSources` int(11) NOT NULL, `maxPrivSources` int(11) NOT NULL, `maxSubscriptions` int(11) NOT NULL, `maxHookCalls` int(11) NOT NULL COMMENT 'per month', `maxTraffic` int(11) NOT NULL COMMENT 'in kb', PRIMARY KEY (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4",
-				FParams: []string{TableRoles},
+				FParams: []string{models.TableRoles},
 			},
 			dbhelper.InitSQL{
 				//Insert default roles
 				Query:   "INSERT INTO `%s` (`pk_id`, `name`, `maxPrivSources`,`maxPubSources`, `maxSubscriptions`, `maxHookCalls`, `maxTraffic`) VALUES (1, 'guest',0, 0, -1, 0, 0), (2, 'admin', -1, -1 ,-1, -1, -1), (3, 'user', 2, 40, 100, 50, 10000);",
-				FParams: []string{TableRoles},
+				FParams: []string{models.TableRoles},
 			},
 
 			//User
 			dbhelper.InitSQL{
 				//Create table
 				Query:   "CREATE TABLE `%s` ( `pk_id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `username` TEXT NOT NULL , `password` TEXT NOT NULL , `ip` varchar(16) NOT NULL, `role` int(10) unsigned NOT NULL, `traffic` int(10) unsigned NOT NULL COMMENT 'in bytes', `hookCalls` int(10) unsigned NOT NULL, `resetIndex` smallint(5) unsigned NOT NULL, `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `isValid` BOOLEAN NOT NULL DEFAULT TRUE , PRIMARY KEY (`pk_id`), KEY `role` (`role`), CONSTRAINT `User_ibfk_1` FOREIGN KEY (`role`) REFERENCES `Roles` (`pk_id`)) ENGINE = InnoDB;",
-				FParams: []string{TableUser},
+				FParams: []string{models.TableUser},
 			},
 
 			//Sources
 			dbhelper.InitSQL{
 				//Create table
 				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `sourceID` text NOT NULL, `creator` int(10) unsigned NOT NULL, `mode` TINYINT UNSIGNED NOT NULL,`name` text NOT NULL, `description` text NOT NULL, `secret` varchar(48) NOT NULL, `creationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `private` tinyint(1) NOT NULL DEFAULT '0', PRIMARY KEY (`pk_id`), KEY `creator` (`creator`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-				FParams: []string{TableSources},
+				FParams: []string{models.TableSources},
 			},
 			dbhelper.InitSQL{
 				//Create foreign key
 				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`creator`) REFERENCES `%s` (`pk_id`);",
-				FParams: []string{TableSources, TableSources, TableUser},
+				FParams: []string{models.TableSources, models.TableSources, models.TableUser},
 			},
 
 			//Modes
@@ -64,37 +59,37 @@ func getInitSQL() dbhelper.QueryChain {
 			dbhelper.InitSQL{
 				//Create foreign key sources.mode -> modes.modeID
 				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`mode`) REFERENCES `%s` (`modeID`);",
-				FParams: []string{TableSources, TableSources, TableModes},
+				FParams: []string{models.TableSources, models.TableSources, TableModes},
 			},
 
 			//LoginSessions
 			dbhelper.InitSQL{
 				//Create table
 				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `userID` int(10) unsigned NOT NULL, `sessionToken` varchar(64) NOT NULL, `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `isValid` tinyint(1) NOT NULL DEFAULT '1', PRIMARY KEY (`pk_id`), KEY `userID` (`userID`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-				FParams: []string{TableLoginSession},
+				FParams: []string{models.TableLoginSession},
 			},
 			dbhelper.InitSQL{
 				//Create foreign key
 				Query:   "ALTER TABLE `%s` ADD CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `%s` (`pk_id`);",
-				FParams: []string{TableLoginSession, TableLoginSession, TableUser},
+				FParams: []string{models.TableLoginSession, models.TableLoginSession, models.TableUser},
 			},
 
 			//Subscriptions
 			dbhelper.InitSQL{
 				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `subscriptionID` text NOT NULL, `subscriber` int(10) unsigned NOT NULL, `source` int(10) unsigned NOT NULL, `callbackURL` text, `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `isValid` tinyint(1) NOT NULL DEFAULT '0', `lastTrigger` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', PRIMARY KEY (`pk_id`), KEY `subscriber` (`subscriber`), KEY `source` (`source`), CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`subscriber`) REFERENCES `%s` (`pk_id`), CONSTRAINT `%s_ibfk_2` FOREIGN KEY (`source`) REFERENCES `%s` (`pk_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-				FParams: []string{TableSubscriptions, TableSubscriptions, TableUser, TableSubscriptions, TableSources},
+				FParams: []string{models.TableSubscriptions, models.TableSubscriptions, models.TableUser, models.TableSubscriptions, models.TableSources},
 			},
 
 			//Insert user
 			dbhelper.InitSQL{
 				Query:   "INSERT INTO `%s` (`pk_id`, `username`, `password`, `ip`, `role`) VALUES (1, 'nouser', '','-','1');",
-				FParams: []string{TableUser},
+				FParams: []string{models.TableUser},
 			},
 
 			//Webhooks
 			dbhelper.InitSQL{
 				Query:   "CREATE TABLE `%s` (`pk_id` int(10) unsigned NOT NULL AUTO_INCREMENT, `sourceID` int(10) unsigned NOT NULL, `header` text NOT NULL, `payload` text NOT NULL, `received` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`pk_id`), KEY `fkeySource` (`sourceID`), CONSTRAINT `%s_ibfk_1` FOREIGN KEY (`sourceID`) REFERENCES `%s` (`pk_id`)) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4",
-				FParams: []string{TableWebhooks, TableWebhooks, TableSources},
+				FParams: []string{models.TableWebhooks, models.TableWebhooks, models.TableSources},
 			},
 		),
 	}
@@ -104,174 +99,36 @@ func getInitSQL() dbhelper.QueryChain {
 
 // ------> Selects
 
-func loginQuery(db *dbhelper.DBhelper, username, password, ip string) (string, bool, error) {
-	var pkid uint32
-	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1 LIMIT 1", []string{TableUser}, username, password)
-	if err != nil || pkid < 1 {
-		return "", false, nil
-	}
-
-	session := LoginSession{
-		UserID: pkid,
-		Token:  gaw.RandString(64),
-	}
-
-	err = session.insert(db)
-	if LogError(err) {
-		return "", false, err
-	}
-
-	updateIP(db, pkid, ip)
-
-	return session.Token, true, nil
-}
-
-func updateIP(db *dbhelper.DBhelper, userID uint32, ip string) error {
-	_, err := db.Execf("UPDATE %s SET ip=? WHERE pk_id=?", []string{TableUser}, ip, userID)
-	return err
-}
-
 func checkSubscriptionExitsts(db *dbhelper.DBhelper, sourceID uint32, callbackURL string) (bool, error) {
 	var c int
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE source=? AND callbackURL=?", []string{TableSubscriptions}, sourceID, callbackURL)
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE source=? AND callbackURL=?", []string{models.TableSubscriptions}, sourceID, callbackURL)
 	if err != nil {
 		return false, err
 	}
 	return c > 0, nil
 }
 
-func getSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, error) {
-	var source Source
-	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE sourceID=? LIMIT 1", []string{TableSources}, sourceID)
-	if err != nil {
-		return nil, err
-	}
-	return &source, nil
-}
-
-func getSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
-	var sources []Source
-	err := db.QueryRowsf(&sources, "SELECT * FROM %s WHERE creator=?", []string{TableSources}, userID)
-	if err != nil {
-		return nil, err
-	}
-	return sources, nil
-}
-
-func getSourceFromPK(db *dbhelper.DBhelper, sourceID uint32) (*Source, error) {
-	var source Source
-	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSources}, sourceID)
-	if err != nil {
-		return nil, err
-	}
-	return &source, nil
-}
-
-func getWebhookFromPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error) {
-	var webhook Webhook
-	err := db.QueryRowf(&webhook, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableWebhooks}, webhookID)
-	if err != nil {
-		return nil, err
-	}
-	return &webhook, nil
-}
-
+//Returns all sessions
 func getAllSessions(db *dbhelper.DBhelper) ([]string, error) {
 	var sessions []string
-	err := db.QueryRowsf(&sessions, "SELECT sessionToken FROM %s WHERE isValid=1", []string{TableLoginSession})
+	err := db.QueryRowsf(&sessions, "SELECT sessionToken FROM %s WHERE isValid=1", []string{models.TableLoginSession})
 	return sessions, err
-}
-
-func (user *User) hasSourceWithName(db *dbhelper.DBhelper, name string) (bool, error) {
-	var c int
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE name=? AND creator=?", []string{TableSources}, name, user.Pkid)
-	return c > 0, err
-}
-
-func (user *User) getSourceCount(db *dbhelper.DBhelper, private bool) (uint, error) {
-	var c uint
-	priv := 0
-	if private {
-		priv = 1
-	}
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE creator=? AND private=?", []string{TableSources}, user.Pkid, priv)
-	return c, err
 }
 
 //Delete webhooks which aren't used anymore
 func deleteOldHooks(db *dbhelper.DBhelper) {
-	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{TableWebhooks, TableWebhooks, TableSubscriptions, TableSubscriptions, TableWebhooks})
+	_, err := db.Execf("DELETE FROM %s WHERE (%s.received < (SELECT MIN(lastTrigger) FROM %s WHERE %s.source = %s.sourceID) AND DATE_ADD(received, INTERVAL 1 day) <= now()) OR DATE_ADD(received, INTERVAL 2 day) <= now()", []string{models.TableWebhooks, models.TableWebhooks, models.TableSubscriptions, models.TableSubscriptions, models.TableWebhooks})
 	if err != nil {
 		LogError(err)
 	}
 	log.Info("Webhook cleanup done")
 }
 
-// -----------> Inserts
-func (session *LoginSession) insert(db *dbhelper.DBhelper) error {
-	rs, err := db.Execf("INSERT INTO %s (sessionToken, userID) VALUES(?,?)", []string{TableLoginSession}, session.Token, session.UserID)
+//Returns count of affected rows
+func resetUserResourceUsage(db *dbhelper.DBhelper) (int64, error) {
+	rs, err := db.Execf("UPDATE %s SET resetIndex=TIMESTAMPDIFF(MONTH, createdAt, now()), traffic=0, hookCalls=0 WHERE TIMESTAMPDIFF(MONTH, createdAt, now()) > resetIndex", []string{models.TableUser})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	session.PkID = uint32(id)
-	return nil
-}
-
-func (source *Source) insert(db *dbhelper.DBhelper) error {
-	secret := gaw.RandString(48)
-	sid := gaw.RandString(32)
-	rs, err := db.Execf("INSERT INTO %s (creator, name, description, secret, private, sourceID, mode) VALUES(?,?,?,?,?,?,?)", []string{TableSources}, source.Creator.Pkid, source.Name, source.Description, secret, source.IsPrivate, sid, source.Mode)
-	if err != nil {
-		return err
-	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	source.PkID = uint32(id)
-	source.Secret = secret
-	source.SourceID = sid
-
-	return nil
-}
-
-func (webhook *Webhook) insert(db *dbhelper.DBhelper) error {
-	rs, err := db.Execf("INSERT INTO %s (sourceID, header, payload) VALUES(?,?,?)", []string{TableWebhooks}, webhook.SourceID, webhook.Headers, webhook.Payload)
-	if err != nil {
-		return err
-	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	webhook.PkID = uint32(id)
-	return nil
-}
-
-func (source *Source) update(db *dbhelper.DBhelper, field, newText string, arg ...bool) error {
-	if newText == "-" && len(arg) > 0 {
-		newText = "NULL"
-	}
-	_, err := db.Execf("UPDATE %s SET %s=? WHERE pk_id=?", []string{TableSources, field}, newText, source.PkID)
-	return err
-}
-
-// ----------> Deletes
-
-//Delete source
-func (source *Source) delete(db *dbhelper.DBhelper) error {
-	_, err := db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, source.PkID)
-	if err != nil {
-		return err
-	}
-	_, err = db.Execf("DELETE FROM %s WHERE source=?", []string{TableSubscriptions}, source.PkID)
-	if err != nil {
-		return err
-	}
-	_, err = db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSources}, source.PkID)
-	return err
+	return rs.RowsAffected()
 }

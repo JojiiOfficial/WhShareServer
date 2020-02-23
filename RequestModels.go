@@ -4,58 +4,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/JojiiOfficial/WhShareServer/models"
 	log "github.com/sirupsen/logrus"
 )
-
-// ------------- Database structs ----------------
-
-//Source a webhook source
-type Source struct {
-	PkID         uint32 `db:"pk_id" orm:"pk,ai" json:"-"`
-	Name         string `db:"name" json:"name"`
-	SourceID     string `db:"sourceID" json:"sourceID"`
-	Description  string `db:"description" json:"description"`
-	Secret       string `db:"secret" json:"secret"`
-	CreatorID    uint32 `db:"creator" json:"-"`
-	CreationTime string `db:"creationTime" json:"crTime"`
-	IsPrivate    bool   `db:"private" json:"isPrivate"`
-	Mode         uint8  `db:"mode" json:"mode"`
-	Creator      User   `db:"-" json:"-"`
-}
-
-//LoginSession a login session
-type LoginSession struct {
-	PkID    uint32 `db:"pk_id" orm:"pk,ai"`
-	UserID  uint32 `db:"userID"`
-	Token   string `db:"sessionToken"`
-	Created string `db:"created"`
-	IsValid bool   `db:"isValid"`
-	User    User
-}
-
-//Webhook the actual webhook from a server
-type Webhook struct {
-	PkID     uint32 `db:"pk_id" orm:"pk,ai"`
-	SourceID uint32 `db:"sourceID"`
-	Headers  string `db:"header"`
-	Payload  string `db:"payload"`
-	Received string `db:"received"`
-}
-
-//Role the role of a user
-type Role struct {
-	PkID             uint32 `db:"pk_id" orm:"pk,ai"`
-	Name             string `db:"name"`
-	MaxPrivSources   int    `db:"maxPrivSources"`
-	MaxPubSources    int    `db:"maxPubSources"`
-	MaxSubscriptions int    `db:"maxSubscriptions"`
-	MaxHookCalls     int    `db:"maxHookCalls"`
-	MaxTraffic       int    `db:"maxTraffic"`
-}
-
-// ------------- REST structs ----------------
-
-//-----> Requests
 
 type credentialRequest struct {
 	Username string `json:"username"`
@@ -115,7 +66,7 @@ type subscriptionResponse struct {
 }
 
 type listSourcesResponse struct {
-	Sources []Source `json:"sources,omitempty"`
+	Sources []models.Source `json:"sources,omitempty"`
 }
 
 //Functions

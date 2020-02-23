@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"math/rand"
@@ -8,8 +8,16 @@ import (
 
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/constants"
 	log "github.com/sirupsen/logrus"
 )
+
+//NotifyCallback callback for Notify
+type NotifyCallback interface {
+	OnSuccess(Subscription)
+	OnError(Subscription)
+	OnUnsubscribe(Subscription)
+}
 
 //Subscription the subscription a user made
 type Subscription struct {
@@ -23,8 +31,11 @@ type Subscription struct {
 	LastTrigger    string `db:"lastTrigger"`
 }
 
-//Notify all subscriber for a given webhook
-func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source) {
+//TableSubscriptions the tableName for subscriptions
+const TableSubscriptions = "Subscriptions"
+
+//NotifyAllSubscriber for a given webhook
+func NotifyAllSubscriber(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, source *Source, callback NotifyCallback) {
 	subscriptions, err := source.getSubscriptions(db)
 	if LogError(err) {
 		return
@@ -34,7 +45,7 @@ func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source
 		log.Debugf("Starting pool for %d subscriber\n", len(subscriptions))
 
 		go (func() {
-			startPool(db, webhook, source, subscriptions)
+			startPool(db, config, webhook, source, subscriptions)
 		})()
 	} else {
 		log.Info("No subscriber found!")
@@ -42,7 +53,7 @@ func notifyAllSubscriber(db *dbhelper.DBhelper, webhook *Webhook, source *Source
 }
 
 //Start notifier pool
-func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscriptions []Subscription) {
+func startPool(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, source *Source, subscriptions []Subscription) {
 	pos := 0
 
 	c := make(chan int, 1)
@@ -55,7 +66,7 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 			go (func(c *chan int, subscription *Subscription, webhook *Webhook, source *Source) {
 				rand.Seed(time.Now().UnixNano())
 				<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
-				subscription.Notify(webhook, source)
+				subscription.Notify(db, webhook, source)
 				*c <- 1
 			})(&c, &subscriptions[pos], webhook, source)
 
@@ -65,7 +76,7 @@ func startPool(db *dbhelper.DBhelper, webhook *Webhook, source *Source, subscrip
 }
 
 //Notify subscriber
-func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
+func (subscription *Subscription) Notify(db *dbhelper.DBhelper, webhook *Webhook, source *Source) (*http.Response, error) {
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}
@@ -75,46 +86,48 @@ func (subscription *Subscription) Notify(webhook *Webhook, source *Source) {
 	setHeadersFromStr(webhook.Headers, &req.Header)
 
 	//Add header for client
-	req.Header.Set(HeaderReceived, webhook.Received)
-	req.Header.Set(HeaderSource, source.SourceID)
-	req.Header.Set(HeaderSubsID, subscription.SubscriptionID)
+	req.Header.Set(constants.HeaderReceived, webhook.Received)
+	req.Header.Set(constants.HeaderSource, source.SourceID)
+	req.Header.Set(constants.HeaderSubsID, subscription.SubscriptionID)
 
 	//Do the request
 	resp, err := client.Do(req)
 	LogError(err)
+	return resp, err
 
-	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
-		retryService.add(subscription.PkID, source.PkID, webhook.PkID)
+	/*if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
+		retryService.Add(subscription.PkID, source.PkID, webhook.PkID)
 	} else if resp.StatusCode == http.StatusTeapot {
 		//Unsubscribe
-		subscription.remove(db, retryService)
+		subscription.Remove(db)
 	} else {
 		//Successful notification
-		retryService.remove(subscription.PkID)
+		retryService.Remove(subscription.PkID)
 		log.Debug("Removing subscription from retryQueue. Reason: successful notification")
 		if !subscription.IsValid {
 			subscription.triggerAndValidate(db)
 		} else {
 			subscription.trigger(db)
 		}
-	}
+	}*/
 }
 
 // ------------------------ Queries
 
-func removeSubscriptionByPK(db *dbhelper.DBhelper, pk uint32, rService RetryService) error {
+//RemoveSubscriptionByPK removes a subscription by pk
+func RemoveSubscriptionByPK(db *dbhelper.DBhelper, pk uint32) error {
 	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, pk)
-	rService.remove(pk)
 	return err
 }
 
-func (subscription Subscription) remove(db *dbhelper.DBhelper, rService *RetryService) error {
-	rService.remove(subscription.PkID)
+//Remove removes/unsubscribes to a subscription
+func (subscription Subscription) Remove(db *dbhelper.DBhelper) error {
 	_, err := db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSubscriptions}, subscription.PkID)
 	return err
 }
 
-func getSubscriptionBySubsID(db *dbhelper.DBhelper, subscriptionID string) (*Subscription, error) {
+//GetSubscriptionBySubsID get the subscription by subscriptionID
+func GetSubscriptionBySubsID(db *dbhelper.DBhelper, subscriptionID string) (*Subscription, error) {
 	var subscription Subscription
 	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE subscriptionID=? LIMIT 1", []string{TableSubscriptions}, subscriptionID)
 	if err != nil {
@@ -123,7 +136,8 @@ func getSubscriptionBySubsID(db *dbhelper.DBhelper, subscriptionID string) (*Sub
 	return &subscription, nil
 }
 
-func getSubscriptionByPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, error) {
+//GetSubscriptionByPK get subscription by pk
+func GetSubscriptionByPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, error) {
 	var subscription Subscription
 	err := db.QueryRowf(&subscription, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSubscriptions}, pkID)
 	if err != nil {
@@ -141,12 +155,14 @@ func (subscription *Subscription) trigger(db *dbhelper.DBhelper) {
 	db.Execf("UPDATE %s SET lastTrigger=now() WHERE pk_id=?", []string{TableSubscriptions}, subscription.PkID)
 }
 
-func (subscription *Subscription) updateCallback(db *dbhelper.DBhelper, newCallback string) error {
+//UpdateCallback updates the callback for a subscription
+func (subscription *Subscription) UpdateCallback(db *dbhelper.DBhelper, newCallback string) error {
 	_, err := db.Execf("UPDATE %s SET callbackURL=? WHERE subscriptionID=?", []string{TableSubscriptions}, newCallback, subscription.SubscriptionID)
 	return err
 }
 
-func (subscription *Subscription) insert(db *dbhelper.DBhelper) error {
+//Insert inserts the subscription into the db
+func (subscription *Subscription) Insert(db *dbhelper.DBhelper) error {
 	subscription.SubscriptionID = gaw.RandString(32)
 	rs, err := db.Execf("INSERT INTO %s (subscriptionID, subscriber, source, callbackURL) VALUES (?,?,?,?)", []string{TableSubscriptions}, subscription.SubscriptionID, subscription.UserID, subscription.Source, subscription.CallbackURL)
 	if err != nil {
@@ -166,8 +182,29 @@ func (source *Source) getSubscriptions(db *dbhelper.DBhelper) ([]Subscription, e
 	return subscriptions, err
 }
 
-func (user *User) getSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
-	var c uint32
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=?", []string{TableSubscriptions}, user.Pkid)
-	return c, err
+//LogError returns true on error
+func LogError(err error, context ...map[string]interface{}) bool {
+	if err == nil {
+		return false
+	}
+
+	if len(context) > 0 {
+		log.WithFields(context[0]).Error(err.Error())
+	} else {
+		log.Error(err.Error())
+	}
+	return true
+}
+
+func setHeadersFromStr(headers string, header *http.Header) {
+	headersrn := strings.Split(headers, "\r\n")
+	for _, v := range headersrn {
+		if !strings.Contains(v, "=") {
+			continue
+		}
+		kp := strings.Split(v, "=")
+		key := kp[0]
+
+		(*header).Set(key, kp[1])
+	}
 }

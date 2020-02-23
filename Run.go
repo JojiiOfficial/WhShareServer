@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -10,17 +11,18 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/models"
+	"github.com/JojiiOfficial/WhShareServer/services"
 	"github.com/thecodeteam/goodbye"
 )
 
 var (
-	retryService        *RetryService
-	hookAntiSpamService *WebhookAntiSpammer
+	retryService *services.RetryService
 )
 
 var currIP string
 
-func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
+func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 	log.Info("Starting version " + version)
 
 	if config.Server.BogonAsCallback {
@@ -50,9 +52,6 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 		ReturnNilOnErr: false,
 	})
 
-	//Creating the hook anti spam service
-	hookAntiSpamService = NewWebhookAntiSpammer("whASpam", 15*time.Second)
-
 	c := make(chan string, 1)
 	go (func() {
 		c <- getOwnIP()
@@ -61,8 +60,8 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 	//Starting services
 
 	//Create and start retryService
-	retryService = NewRetryService(db, config)
-	retryService.start()
+	retryService = services.NewRetryService(db, config)
+	retryService.Start()
 
 	//Start webhook cleaner
 	startWebhookCleaner(db)
@@ -86,6 +85,20 @@ func runCmd(config *ConfigStruct, dab *dbhelper.DBhelper) {
 	}
 }
 
+//Callback for notifications
+type subCB struct {
+}
+
+func (subCB subCB) OnSuccess(sobscription models.Subscription) {
+	fmt.Println("Webhook delivered successfully")
+}
+func (subCB subCB) OnError(sobscription models.Subscription) {
+
+}
+func (subCB subCB) OnUnsubscribe(sobscription models.Subscription) {
+
+}
+
 func resetUsageService(db *dbhelper.DBhelper) {
 	start := time.Now()
 	n, err := resetUserResourceUsage(db)
@@ -105,7 +118,7 @@ func updateCurrIP() {
 	}
 }
 
-func startWebServer(router *mux.Router, config *ConfigStruct) {
+func startWebServer(router *mux.Router, config *models.ConfigStruct) {
 	//Start HTTPS if enabled
 	if config.Webserver.HTTPS.Enabled {
 		log.Infof("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)

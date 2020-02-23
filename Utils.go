@@ -10,13 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JojiiOfficial/WhShareServer/constants"
+
 	log "github.com/sirupsen/logrus"
 
 	gaw "github.com/JojiiOfficial/GoAw"
 )
 
 func getDataPath() string {
-	path := path.Join(gaw.GetHome(), DataDir)
+	path := path.Join(gaw.GetHome(), constants.DataDir)
 	s, err := os.Stat(path)
 	if err != nil {
 		err = os.Mkdir(path, 0770)

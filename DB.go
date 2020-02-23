@@ -6,10 +6,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/models"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func connectDB(config *ConfigStruct) (*dbhelper.DBhelper, error) {
+func connectDB(config *models.ConfigStruct) (*dbhelper.DBhelper, error) {
 	log.Debug("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
 		config.Server.Database.Username,

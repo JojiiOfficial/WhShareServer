@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
+	"github.com/JojiiOfficial/WhShareServer/models"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -32,13 +33,13 @@ var (
 	//Config create
 	configCmd           = app.Command("config", "Commands for the config file")
 	configCmdCreate     = configCmd.Command("create", "Create config file")
-	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(getDefaultConfig()).String()
+	configCmdCreateName = configCmdCreate.Arg("name", "Config filename").Default(models.GetDefaultConfig()).String()
 
 	benchCmd = app.Command("bench", "benchmark the server")
 )
 
 var (
-	config  *ConfigStruct
+	config  *models.ConfigStruct
 	db      *dbhelper.DBhelper
 	isDebug bool = false
 )
@@ -62,7 +63,7 @@ func main() {
 
 	if parsed != configCmdCreate.FullCommand() {
 		var shouldExit bool
-		config, shouldExit = InitConfig(*appCfgFile, false)
+		config, shouldExit = models.InitConfig(*appCfgFile, false)
 		if shouldExit {
 			return
 		}
@@ -124,7 +125,7 @@ func main() {
 			fmt.Println("Get all users having a session:")
 			for _, session := range sessions {
 				start := time.Now()
-				getUserBySession(db, session)
+				models.GetUserBySession(db, session)
 				fmt.Println(time.Now().Sub(start).String())
 			}
 		}
@@ -132,7 +133,7 @@ func main() {
 	case configCmdCreate.FullCommand():
 		{
 			//whsub config create
-			InitConfig(*configCmdCreateName, true)
+			models.InitConfig(*configCmdCreateName, true)
 		}
 	}
 }
