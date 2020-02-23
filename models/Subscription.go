@@ -15,7 +15,7 @@ import (
 //NotifyCallback callback for Notify
 type NotifyCallback interface {
 	OnSuccess(Subscription)
-	OnError(Subscription)
+	OnError(Subscription, Source, Webhook)
 	OnUnsubscribe(Subscription)
 }
 
@@ -45,7 +45,7 @@ func NotifyAllSubscriber(db *dbhelper.DBhelper, config *ConfigStruct, webhook *W
 		log.Debugf("Starting pool for %d subscriber\n", len(subscriptions))
 
 		go (func() {
-			startPool(db, config, webhook, source, subscriptions)
+			startPool(db, config, webhook, source, subscriptions, callback)
 		})()
 	} else {
 		log.Info("No subscriber found!")
@@ -53,7 +53,7 @@ func NotifyAllSubscriber(db *dbhelper.DBhelper, config *ConfigStruct, webhook *W
 }
 
 //Start notifier pool
-func startPool(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, source *Source, subscriptions []Subscription) {
+func startPool(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, source *Source, subscriptions []Subscription, callback NotifyCallback) {
 	pos := 0
 
 	c := make(chan int, 1)
@@ -66,7 +66,7 @@ func startPool(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, so
 			go (func(c *chan int, subscription *Subscription, webhook *Webhook, source *Source) {
 				rand.Seed(time.Now().UnixNano())
 				<-time.After(time.Duration(rand.Intn(999)+1) * time.Millisecond)
-				subscription.Notify(db, webhook, source)
+				subscription.Notify(db, webhook, source, callback)
 				*c <- 1
 			})(&c, &subscriptions[pos], webhook, source)
 
@@ -76,7 +76,7 @@ func startPool(db *dbhelper.DBhelper, config *ConfigStruct, webhook *Webhook, so
 }
 
 //Notify subscriber
-func (subscription *Subscription) Notify(db *dbhelper.DBhelper, webhook *Webhook, source *Source) (*http.Response, error) {
+func (subscription *Subscription) Notify(db *dbhelper.DBhelper, webhook *Webhook, source *Source, callback NotifyCallback) (*http.Response, error) {
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}
@@ -93,23 +93,18 @@ func (subscription *Subscription) Notify(db *dbhelper.DBhelper, webhook *Webhook
 	//Do the request
 	resp, err := client.Do(req)
 	LogError(err)
-	return resp, err
 
-	/*if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
-		retryService.Add(subscription.PkID, source.PkID, webhook.PkID)
+	if err != nil || resp.StatusCode > 299 || resp.StatusCode < 200 {
+		callback.OnError(*subscription, *source, *webhook)
 	} else if resp.StatusCode == http.StatusTeapot {
 		//Unsubscribe
-		subscription.Remove(db)
+		callback.OnUnsubscribe(*subscription)
 	} else {
 		//Successful notification
-		retryService.Remove(subscription.PkID)
-		log.Debug("Removing subscription from retryQueue. Reason: successful notification")
-		if !subscription.IsValid {
-			subscription.triggerAndValidate(db)
-		} else {
-			subscription.trigger(db)
-		}
-	}*/
+		callback.OnSuccess(*subscription)
+	}
+
+	return resp, err
 }
 
 // ------------------------ Queries
@@ -146,12 +141,14 @@ func GetSubscriptionByPK(db *dbhelper.DBhelper, pkID uint32) (*Subscription, err
 	return &subscription, nil
 }
 
-func (subscription *Subscription) triggerAndValidate(db *dbhelper.DBhelper) error {
+//TriggerAndValidate triggers the subscription and set validate=1
+func (subscription *Subscription) TriggerAndValidate(db *dbhelper.DBhelper) error {
 	_, err := db.Execf("UPDATE %s SET isValid=1, lastTrigger=now() WHERE subscriptionID=?", []string{TableSubscriptions}, subscription.SubscriptionID)
 	return err
 }
 
-func (subscription *Subscription) trigger(db *dbhelper.DBhelper) {
+//Trigger the subscription
+func (subscription *Subscription) Trigger(db *dbhelper.DBhelper) {
 	db.Execf("UPDATE %s SET lastTrigger=now() WHERE pk_id=?", []string{TableSubscriptions}, subscription.PkID)
 }
 

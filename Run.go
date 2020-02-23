@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -60,7 +59,7 @@ func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 	//Starting services
 
 	//Create and start retryService
-	retryService = services.NewRetryService(db, config)
+	retryService = services.NewRetryService(db, config, subCB{retryService: retryService})
 	retryService.Start()
 
 	//Start webhook cleaner
@@ -87,16 +86,25 @@ func runCmd(config *models.ConfigStruct, dab *dbhelper.DBhelper) {
 
 //Callback for notifications
 type subCB struct {
+	retryService *services.RetryService
 }
 
-func (subCB subCB) OnSuccess(sobscription models.Subscription) {
-	fmt.Println("Webhook delivered successfully")
+func (subCB subCB) OnSuccess(subscription models.Subscription) {
+	subCB.retryService.Remove(subscription.PkID)
+	log.Debug("Removing subscription from retryQueue. Reason: successful notification")
+	if !subscription.IsValid {
+		subscription.TriggerAndValidate(db)
+	} else {
+		subscription.Trigger(db)
+	}
 }
-func (subCB subCB) OnError(sobscription models.Subscription) {
 
+func (subCB subCB) OnError(subscription models.Subscription, source models.Source, webhook models.Webhook) {
+	subCB.retryService.Add(subscription.PkID, source.PkID, webhook.PkID)
 }
-func (subCB subCB) OnUnsubscribe(sobscription models.Subscription) {
 
+func (subCB subCB) OnUnsubscribe(subscription models.Subscription) {
+	subscription.Remove(db)
 }
 
 func resetUsageService(db *dbhelper.DBhelper) {

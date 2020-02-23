@@ -19,6 +19,7 @@ type RetryService struct {
 	db *dbhelper.DBhelper
 
 	handlerInterval time.Duration
+	callback        models.NotifyCallback
 }
 
 //Retry retries after some time
@@ -30,12 +31,13 @@ type Retry struct {
 }
 
 //NewRetryService create new retryService
-func NewRetryService(db *dbhelper.DBhelper, conf *models.ConfigStruct) *RetryService {
+func NewRetryService(db *dbhelper.DBhelper, conf *models.ConfigStruct, callback models.NotifyCallback) *RetryService {
 	return &RetryService{
 		RetryList:       make(map[uint32]*Retry),
 		RetryTimes:      conf.Server.Retries.RetryTimes,
 		handlerInterval: conf.Server.Retries.RetryInterval,
 		db:              db,
+		callback:        callback,
 	}
 }
 
@@ -105,7 +107,7 @@ func (retry *Retry) do(subsPK uint32, retryService *RetryService) {
 
 	log.Debug("Doing retry")
 
-	go subscription.Notify(retryService.db, webhook, source)
+	go subscription.Notify(retryService.db, webhook, source, retryService.callback)
 }
 
 //Start starts the retryService

@@ -642,7 +642,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 				Payload:  string(payload),
 			}
 			webhook.Insert(db)
-			models.NotifyAllSubscriber(db, config, webhook, source, subCB{})
+			models.NotifyAllSubscriber(db, config, webhook, source, subCB{retryService: retryService})
 		})(r)
 
 		if <-c {
