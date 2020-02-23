@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
@@ -24,7 +23,6 @@ var (
 )
 
 var (
-	router *mux.Router
 	currIP string
 )
 
@@ -81,10 +79,8 @@ func startAPI() {
 	}
 	log.Debugf("Servers IP address is '%s'\n", ipRefreshService.IP)
 
-	//Create a new router
-	router = NewRouter()
 	//Create the APIService and start it
-	apiService = services.NewAPIService(db, config, router)
+	apiService = services.NewAPIService(db, config)
 	apiService.Start()
 
 	//Startup done

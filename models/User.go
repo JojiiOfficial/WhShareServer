@@ -104,7 +104,8 @@ func (user *User) GetSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
 //LoginQuery loginQuery
 func LoginQuery(db *dbhelper.DBhelper, username, password, ip string) (string, bool, error) {
 	var pkid uint32
-	err := db.QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1 LIMIT 1", []string{TableUser}, username, password)
+	//TODO create dbhelper.NoHook
+	err := db.WithHook(func(err error, s, s1 string) {}).QueryRowf(&pkid, "SELECT pk_id FROM %s WHERE username=? AND password=? AND isValid=1 LIMIT 1", []string{TableUser}, username, password)
 	if err != nil || pkid < 1 {
 		return "", false, nil
 	}
