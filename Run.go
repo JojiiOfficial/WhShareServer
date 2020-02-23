@@ -15,8 +15,6 @@ import (
 	"github.com/thecodeteam/goodbye"
 )
 
-//TODO make more beautiful
-
 //Services
 var (
 	retryService     *services.RetryService
@@ -57,7 +55,7 @@ func runCmd(config *models.ConfigStruct) {
 	//creating new router
 	router := NewRouter()
 
-	//Start retryService
+	//Create and init retryService
 	retryService = services.NewRetryService(db, config)
 	retryService.Callback = subCB{retryService: retryService}
 	retryService.Start()

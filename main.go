@@ -132,7 +132,7 @@ func main() {
 		{
 			//ToDo enchant the bench cmd
 			start := time.Now()
-			sessions, err := models.GetAllSessions(db)
+			sessions, err := models.GetAllSessionTokens(db)
 			fmt.Printf("Getting all %d sessions took %s\n", len(sessions), time.Now().Sub(start).String())
 			if err != nil {
 				LogError(err)

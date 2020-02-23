@@ -31,8 +31,8 @@ func (session *LoginSession) Insert(db *dbhelper.DBhelper) error {
 	return nil
 }
 
-//GetAllSessions returns all valid sessions
-func GetAllSessions(db *dbhelper.DBhelper) ([]string, error) {
+//GetAllSessionTokens returns all valid sessions
+func GetAllSessionTokens(db *dbhelper.DBhelper) ([]string, error) {
 	var sessions []string
 	err := db.QueryRowsf(&sessions, "SELECT sessionToken FROM %s WHERE isValid=1", []string{TableLoginSession})
 	return sessions, err

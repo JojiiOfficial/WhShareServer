@@ -5,8 +5,6 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
-//TODO clean up
-
 //Source a webhook source
 type Source struct {
 	PkID         uint32 `db:"pk_id" orm:"pk,ai" json:"-"`
@@ -34,7 +32,7 @@ func GetSourceFromSourceID(db *dbhelper.DBhelper, sourceID string) (*Source, err
 	return &source, nil
 }
 
-//GetSourcesForUser gets sources for user
+//GetSourcesForUser get all sources created by the given user
 func GetSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
 	var sources []Source
 	err := db.QueryRowsf(&sources, "SELECT * FROM %s WHERE creator=?", []string{TableSources}, userID)
@@ -44,17 +42,17 @@ func GetSourcesForUser(db *dbhelper.DBhelper, userID uint32) ([]Source, error) {
 	return sources, nil
 }
 
-//GetSourceByPK gets source by pk
-func GetSourceByPK(db *dbhelper.DBhelper, sourceID uint32) (*Source, error) {
+//GetSourceByPK get source by pk_id
+func GetSourceByPK(db *dbhelper.DBhelper, pkID uint32) (*Source, error) {
 	var source Source
-	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSources}, sourceID)
+	err := db.QueryRowf(&source, "SELECT * FROM %s WHERE pk_id=? LIMIT 1", []string{TableSources}, pkID)
 	if err != nil {
 		return nil, err
 	}
 	return &source, nil
 }
 
-//Insert inserts source into DB
+//Insert source into DB
 func (source *Source) Insert(db *dbhelper.DBhelper) error {
 	secret := gaw.RandString(48)
 	sid := gaw.RandString(32)
@@ -84,14 +82,19 @@ func (source *Source) Update(db *dbhelper.DBhelper, field, newText string, arg .
 
 //Delete source
 func (source *Source) Delete(db *dbhelper.DBhelper) error {
+	//Delete all webhooks assigned to this source
 	_, err := db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, source.PkID)
 	if err != nil {
 		return err
 	}
+
+	//Delete all subscriptions assigned to this source
 	_, err = db.Execf("DELETE FROM %s WHERE source=?", []string{TableSubscriptions}, source.PkID)
 	if err != nil {
 		return err
 	}
+
+	//Delete the source
 	_, err = db.Execf("DELETE FROM %s WHERE pk_id=?", []string{TableSources}, source.PkID)
 	return err
 }
