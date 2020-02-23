@@ -35,7 +35,7 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 
 	if source.Secret == secret {
 		c := make(chan bool, 1)
-		log.Info("New webhook:", source.Name)
+		log.Infof("New webhook: %s\n", source.Name)
 		msg := "error"
 
 		go (func(req *http.Request) {

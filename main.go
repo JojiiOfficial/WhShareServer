@@ -16,7 +16,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const version = "0.22.0a"
+const version = "0.22.1a"
 
 var (
 	app         = kingpin.New("server", "A Rest server")
@@ -133,7 +133,7 @@ func main() {
 		}
 	case benchCmd.FullCommand():
 		{
-			//ToDo enchant the bench cmd
+			//TODO enchant the bench cmd
 			start := time.Now()
 			sessions, err := models.GetAllSessionTokens(db)
 			fmt.Printf("Getting all %d sessions took %s\n", len(sessions), time.Now().Sub(start).String())

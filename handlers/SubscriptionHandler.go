@@ -223,7 +223,8 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 
 //Get lits of disallowed IPs
 func genIPBlocklist(ownIP *string, config *models.ConfigStruct) []string {
-	list := []string{}
+	var list []string
+
 	if ownIP != nil {
 		list = append(list, *ownIP)
 	}
