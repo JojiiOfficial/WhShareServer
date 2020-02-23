@@ -16,7 +16,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const version = "0.21.7a"
+const version = "0.22.0a"
 
 var (
 	app         = kingpin.New("server", "A Rest server")
