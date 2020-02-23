@@ -17,9 +17,10 @@ import (
 
 //Services
 var (
-	retryService     *services.RetryService
-	cleanService     *services.CleanupService
-	ipRefreshService *services.IPRefreshService
+	retryService      *services.RetryService
+	cleanService      *services.CleanupService
+	ipRefreshService  *services.IPRefreshService
+	usageResetService *services.ResetUsageService
 )
 
 var (
@@ -63,6 +64,10 @@ func runCmd(config *models.ConfigStruct) {
 	//Create cleanupService
 	cleanService = services.NewCleanupService(db)
 
+	//Create usageResetService
+	usageResetService = services.NewResetUsageService(db)
+	usageResetService.Tick()
+
 	//Create IPRefreshService
 	ipRefreshService = services.NewIPRefreshService(db)
 	if !ipRefreshService.Init() {
@@ -77,9 +82,9 @@ func runCmd(config *models.ConfigStruct) {
 	log.Info("Startup completed")
 
 	for {
-		resetUsageService(db)
 		time.Sleep(time.Hour)
 
+		usageResetService.Tick()
 		cleanService.Tick()
 		ipRefreshService.Tick()
 	}
@@ -106,16 +111,6 @@ func (subCB subCB) OnError(subscription models.Subscription, source models.Sourc
 
 func (subCB subCB) OnUnsubscribe(subscription models.Subscription) {
 	subscription.Remove(db)
-}
-
-func resetUsageService(db *dbhelper.DBhelper) {
-	start := time.Now()
-	n, err := resetUserResourceUsage(db)
-	if err == nil && n > 0 {
-		dur := time.Now().Sub(start).String()
-		log.Debugf("Resource usage resetting took %s\n", dur)
-		log.Infof("Reset resource usage for %d user(s)", n)
-	}
 }
 
 func startWebServer(router *mux.Router, config *models.ConfigStruct) {

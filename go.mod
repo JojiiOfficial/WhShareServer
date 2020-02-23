@@ -14,5 +14,6 @@ require (
 	github.com/jmoiron/sqlx v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/thecodeteam/goodbye v0.0.0-20170927022442-a83968bda2d3
+	google.golang.org/appengine v1.6.5
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )

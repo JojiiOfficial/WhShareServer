@@ -195,3 +195,13 @@ func LogError(err error, context ...map[string]interface{}) bool {
 	}
 	return true
 }
+
+// SubscriptionExists check if a subscription exists
+func SubscriptionExists(db *dbhelper.DBhelper, sourceID uint32, callbackURL string) (bool, error) {
+	var c int
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE source=? AND callbackURL=?", []string{TableSubscriptions}, sourceID, callbackURL)
+	if err != nil {
+		return false, err
+	}
+	return c > 0, nil
+}

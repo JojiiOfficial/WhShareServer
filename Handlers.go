@@ -193,7 +193,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 		isSubscribed = is
 	} else {
-		ex, err := checkSubscriptionExitsts(db, source.PkID, request.CallbackURL)
+		ex, err := models.SubscriptionExists(db, source.PkID, request.CallbackURL)
 		if err != nil {
 			sendServerError(w)
 			return

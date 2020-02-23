@@ -118,23 +118,3 @@ func getInitSQL() dbhelper.QueryChain {
 		),
 	}
 }
-
-// -------------------- Database QUERIES ----
-
-func checkSubscriptionExitsts(db *dbhelper.DBhelper, sourceID uint32, callbackURL string) (bool, error) {
-	var c int
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE source=? AND callbackURL=?", []string{models.TableSubscriptions}, sourceID, callbackURL)
-	if err != nil {
-		return false, err
-	}
-	return c > 0, nil
-}
-
-//Returns count of affected rows
-func resetUserResourceUsage(db *dbhelper.DBhelper) (int64, error) {
-	rs, err := db.Execf("UPDATE %s SET resetIndex=TIMESTAMPDIFF(MONTH, createdAt, now()), traffic=0, hookCalls=0 WHERE TIMESTAMPDIFF(MONTH, createdAt, now()) > resetIndex", []string{models.TableUser})
-	if err != nil {
-		return 0, err
-	}
-	return rs.RowsAffected()
-}
