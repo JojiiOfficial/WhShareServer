@@ -10,7 +10,10 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/JojiiOfficial/WhShareServer/constants"
 	"github.com/JojiiOfficial/WhShareServer/models"
+	"github.com/JojiiOfficial/WhShareServer/storage"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const version = "0.21.7a"
@@ -91,7 +94,7 @@ func main() {
 		}
 
 		var err error
-		db, err = connectDB(config)
+		db, err = storage.ConnectDB(config, isDebug, *appNoColor)
 		if err != nil {
 			log.Fatalln(err.Error())
 			return

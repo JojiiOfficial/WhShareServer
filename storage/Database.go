@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"strconv"
@@ -7,10 +7,10 @@ import (
 
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/JojiiOfficial/WhShareServer/models"
-	_ "github.com/go-sql-driver/mysql"
 )
 
-func connectDB(config *models.ConfigStruct) (*dbhelper.DBhelper, error) {
+//ConnectDB connects to DB
+func ConnectDB(config *models.ConfigStruct, isDebug, nocolor bool) (*dbhelper.DBhelper, error) {
 	log.Debug("Connecting to DB")
 	db, err := dbhelper.NewDBHelper(dbhelper.Mysql).Open(
 		config.Server.Database.Username,
@@ -27,7 +27,7 @@ func connectDB(config *models.ConfigStruct) (*dbhelper.DBhelper, error) {
 	//Only debugMode if logLevel is debug
 	db.Options.Debug = isDebug
 
-	db.Options.UseColors = !(*appNoColor)
+	db.Options.UseColors = !nocolor
 	return db, updateDB(db)
 }
 
