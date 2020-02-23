@@ -29,7 +29,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(request.SubscriptionID) != 32 {
-		sendError("input missing wrong length", w, WrongInputFormatError, 422)
+		sendError("input missing wrong length", w, models.WrongInputFormatError, 422)
 		return
 	}
 
@@ -44,7 +44,7 @@ func unsubscribe(w http.ResponseWriter, r *http.Request) {
 		sendServerError(w)
 		return
 	}
-	sendResponse(w, ResponseSuccess, "", nil)
+	sendResponse(w, models.ResponseSuccess, "", nil)
 	return
 }
 
@@ -62,12 +62,12 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 
 	//Check if token available. return error if not valid, but given.
 	if len(token) > 0 && len(token) != 64 {
-		sendError("token invalid", w, InvalidTokenError, 403)
+		sendError("token invalid", w, models.InvalidTokenError, 403)
 		return
 	}
 
 	if len(request.SubscriptionID) != 32 {
-		sendResponse(w, ResponseError, "Invalid subscriptionID length!", nil, 411)
+		sendResponse(w, models.ResponseError, "Invalid subscriptionID length!", nil, 411)
 		return
 	}
 
@@ -104,10 +104,10 @@ func updateCallbackURL(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			sendServerError(w)
 		} else {
-			sendResponse(w, ResponseSuccess, "", nil)
+			sendResponse(w, models.ResponseSuccess, "", nil)
 		}
 	} else {
-		sendResponse(w, ResponseError, ActionNotAllowed, nil)
+		sendResponse(w, models.ResponseError, models.ActionNotAllowed, nil)
 	}
 }
 
@@ -125,7 +125,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isStructInvalid(request) {
-		sendError("input missing", w, InvalidTokenError, 422)
+		sendError("input missing", w, models.InvalidTokenError, 422)
 		return
 	}
 
@@ -135,12 +135,12 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 
 	//Check if token available. return error if not valid, but given.
 	if len(token) > 0 && len(token) != 64 {
-		sendError("token invalid", w, InvalidTokenError, 403)
+		sendError("token invalid", w, models.InvalidTokenError, 403)
 		return
 	}
 
 	if len(request.SourceID) != 32 {
-		sendResponse(w, ResponseError, WrongLength, nil, 411)
+		sendResponse(w, models.ResponseError, models.WrongLength, nil, 411)
 		return
 	}
 
@@ -163,10 +163,10 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if user.Role.MaxSubscriptions == 0 {
-			sendResponse(w, ResponseError, "You are not allowed to have subscriptions", nil, 403)
+			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, 403)
 			return
 		} else if user.Role.MaxSubscriptions != -1 && userSubscriptions >= uint32(user.Role.MaxSubscriptions) {
-			sendResponse(w, ResponseError, "Subscription limit exceeded", nil, 403)
+			sendResponse(w, models.ResponseError, "Subscription limit exceeded", nil, 403)
 			return
 		}
 
@@ -180,7 +180,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	//The source to get subbed
 	source, err := models.GetSourceFromSourceID(db, request.SourceID)
 	if err != nil {
-		sendError("input missing", w, NotFoundError, 422)
+		sendError("input missing", w, models.NotFoundError, 422)
 		return
 	}
 
@@ -202,7 +202,7 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isSubscribed {
-		sendResponse(w, ResponseError, "You can subscribe to a source only once", nil)
+		sendResponse(w, models.ResponseError, "You can subscribe to a source only once", nil)
 		return
 	}
 
@@ -225,9 +225,9 @@ func subscribe(w http.ResponseWriter, r *http.Request) {
 			Mode:           source.Mode,
 		}
 
-		sendResponse(w, ResponseSuccess, "", response)
+		sendResponse(w, models.ResponseSuccess, "", response)
 	} else {
-		sendResponse(w, ResponseError, ActionNotAllowed, nil)
+		sendResponse(w, models.ResponseError, models.ActionNotAllowed, nil)
 	}
 }
 
@@ -245,7 +245,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
-		sendError("Invalid token", w, InvalidTokenError, 403)
+		sendError("Invalid token", w, models.InvalidTokenError, 403)
 		return
 	}
 
@@ -253,10 +253,10 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 
 	//Check if user is allowed to create sources
 	if request.Private && user.Role.MaxPrivSources == 0 {
-		sendResponse(w, ResponseError, "You are not allowed to have private sources", nil, 403)
+		sendResponse(w, models.ResponseError, "You are not allowed to have private sources", nil, 403)
 		return
 	} else if !request.Private && user.Role.MaxPubSources == 0 {
-		sendResponse(w, ResponseError, "You are not allowed to have public sources", nil, 403)
+		sendResponse(w, models.ResponseError, "You are not allowed to have public sources", nil, 403)
 		return
 	}
 
@@ -269,12 +269,12 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	//Check for source limit
 	if request.Private && user.Role.MaxPrivSources != -1 {
 		if scount >= uint(user.Role.MaxPrivSources) {
-			sendResponse(w, ResponseError, "Limit for private sources exceeded", nil, 403)
+			sendResponse(w, models.ResponseError, "Limit for private sources exceeded", nil, 403)
 			return
 		}
 	} else if !request.Private && user.Role.MaxPubSources != -1 {
 		if scount >= uint(user.Role.MaxPubSources) {
-			sendResponse(w, ResponseError, "Limit for public sources exceeded", nil, 403)
+			sendResponse(w, models.ResponseError, "Limit for public sources exceeded", nil, 403)
 			return
 		}
 	}
@@ -287,7 +287,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if nameExitst {
-		sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
+		sendResponse(w, models.ResponseError, models.MultipleSourceNameErr, nil)
 		return
 	}
 
@@ -305,7 +305,7 @@ func createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, ResponseSuccess, "", models.SourceAddResponse{
+	sendResponse(w, models.ResponseSuccess, "", models.SourceAddResponse{
 		Secret:   source.Secret,
 		SourceID: source.SourceID,
 	})
@@ -329,7 +329,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 
 	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
-		sendError("Invalid token", w, InvalidTokenError, 403)
+		sendError("Invalid token", w, models.InvalidTokenError, 403)
 		return
 	}
 
@@ -367,7 +367,7 @@ func listSources(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sendResponse(w, ResponseSuccess, "", response)
+	sendResponse(w, models.ResponseSuccess, "", response)
 }
 
 //-> /source/update/{action}
@@ -382,7 +382,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !gaw.IsInStringArray(action, actions) {
-		sendError("not available", w, WrongInputFormatError, 501)
+		sendError("not available", w, models.WrongInputFormatError, 501)
 		return
 	}
 
@@ -397,7 +397,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 
 	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
-		sendError("Invalid token", w, InvalidTokenError, 403)
+		sendError("Invalid token", w, models.InvalidTokenError, 403)
 		return
 	}
 
@@ -407,7 +407,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err.Error() == dbhelper.ErrNoRowsInResultSet {
 			//Source just not found if no rows in result set
-			sendResponse(w, ResponseError, NotFoundError, nil, 404)
+			sendResponse(w, models.ResponseError, models.NotFoundError, nil, 404)
 			return
 		}
 		//Real db error
@@ -416,7 +416,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source.CreatorID != user.Pkid {
-		sendError("user not allowed", w, ActionNotAllowed, 403)
+		sendError("user not allowed", w, models.ActionNotAllowed, 403)
 		return
 	}
 
@@ -443,7 +443,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if has {
-				sendResponse(w, ResponseError, MultipleSourceNameErr, nil)
+				sendResponse(w, models.ResponseError, models.MultipleSourceNameErr, nil)
 				return
 			}
 			err = source.Update(db, "name", request.Content)
@@ -464,7 +464,7 @@ func updateSource(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		sendServerError(w)
 	} else {
-		sendResponse(w, ResponseSuccess, message, nil)
+		sendResponse(w, models.ResponseSuccess, message, nil)
 	}
 }
 
@@ -477,7 +477,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isStructInvalid(request) || len(request.Password) != 128 {
-		sendError("input missing", w, WrongInputFormatError, 422)
+		sendError("input missing", w, models.WrongInputFormatError, 422)
 		return
 	}
 
@@ -497,18 +497,18 @@ func login(w http.ResponseWriter, r *http.Request) {
 	<-after
 
 	if success {
-		sendResponse(w, ResponseSuccess, "", models.LoginResponse{
+		sendResponse(w, models.ResponseSuccess, "", models.LoginResponse{
 			Token: token,
 		})
 	} else {
-		sendResponse(w, ResponseError, "Error logging in", nil, 403)
+		sendResponse(w, models.ResponseError, "Error logging in", nil, 403)
 	}
 }
 
 //-> /user/create
 func register(w http.ResponseWriter, r *http.Request) {
 	if !config.Server.AllowRegistration {
-		sendResponse(w, ResponseError, "Server doesn't accept registrations", nil, 403)
+		sendResponse(w, models.ResponseError, "Server doesn't accept registrations", nil, 403)
 		return
 	}
 
@@ -519,7 +519,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isStructInvalid(request) || len(request.Password) != 128 || len(request.Username) > 30 {
-		sendError("input missing", w, WrongInputFormatError, 422)
+		sendError("input missing", w, models.WrongInputFormatError, 422)
 		return
 	}
 
@@ -530,7 +530,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if exists {
-		sendResponse(w, ResponseError, "User exists", nil)
+		sendResponse(w, models.ResponseError, "User exists", nil)
 		return
 	}
 
@@ -540,7 +540,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, ResponseSuccess, "", nil)
+	sendResponse(w, models.ResponseSuccess, "", nil)
 }
 
 //-> /get/webhook
@@ -557,7 +557,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	source, err := models.GetSourceFromSourceID(db, sourceID)
 	if err != nil {
 		log.Warn("WebhookHandler - Source not found")
-		sendResponse(w, ResponseError, "404 Not found", nil, 404)
+		sendResponse(w, models.ResponseError, "404 Not found", nil, 404)
 		return
 	}
 
@@ -649,9 +649,9 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		})(r)
 
 		if <-c {
-			sendResponse(w, ResponseSuccess, "Success", nil)
+			sendResponse(w, models.ResponseSuccess, "Success", nil)
 		} else {
-			sendResponse(w, ResponseError, msg, nil, 500)
+			sendResponse(w, models.ResponseError, msg, nil, 500)
 		}
 
 	} else {
@@ -664,12 +664,12 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 //Returns true on error
 func checkInput(w http.ResponseWriter, request interface{}, token string, contents ...string) bool {
 	if isStructInvalid(request) {
-		sendError("input missing", w, WrongInputFormatError, 422)
+		sendError("input missing", w, models.WrongInputFormatError, 422)
 		return true
 	}
 
 	if len(token) != 64 {
-		sendError("token invalid", w, InvalidTokenError, 403)
+		sendError("token invalid", w, models.InvalidTokenError, 403)
 		return true
 	}
 
@@ -680,22 +680,22 @@ func checkInput(w http.ResponseWriter, request interface{}, token string, conten
 func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...string) bool {
 	for _, content := range contents {
 		if uint(len(content)) > maxPayloadSize-1 {
-			sendResponse(w, ResponseError, "Content too long!", nil, 413)
+			sendResponse(w, models.ResponseError, "Content too long!", nil, 413)
 			return true
 		}
 	}
 	return false
 }
 
-func sendResponse(w http.ResponseWriter, status ResponseStatus, message string, payload interface{}, params ...int) {
+func sendResponse(w http.ResponseWriter, status models.ResponseStatus, message string, payload interface{}, params ...int) {
 	statusCode := http.StatusOK
 	s := "0"
 	if status == 1 {
 		s = "1"
 	}
 
-	w.Header().Set(HeaderStatus, s)
-	w.Header().Set(HeaderStatusMessage, message)
+	w.Header().Set(models.HeaderStatus, s)
+	w.Header().Set(models.HeaderStatusMessage, message)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	if len(params) > 0 {
@@ -721,7 +721,7 @@ func parseUserInput(w http.ResponseWriter, r *http.Request, p interface{}) bool 
 		return false
 	}
 
-	return !handleAndSendError(json.Unmarshal(body, p), w, WrongInputFormatError, 422)
+	return !handleAndSendError(json.Unmarshal(body, p), w, models.WrongInputFormatError, 422)
 }
 
 func handleAndSendError(err error, w http.ResponseWriter, message string, statusCode int) bool {
@@ -733,11 +733,11 @@ func handleAndSendError(err error, w http.ResponseWriter, message string, status
 }
 
 func sendError(erre string, w http.ResponseWriter, message string, statusCode int) {
-	sendResponse(w, ResponseError, message, nil, statusCode)
+	sendResponse(w, models.ResponseError, message, nil, statusCode)
 }
 
 func sendServerError(w http.ResponseWriter) {
-	sendError("internal server error", w, ServerError, 500)
+	sendError("internal server error", w, models.ServerError, 500)
 }
 
 //Return true if exit

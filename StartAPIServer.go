@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"time"
 
@@ -21,9 +20,11 @@ var (
 	cleanService      *services.CleanupService
 	ipRefreshService  *services.IPRefreshService
 	usageResetService *services.ResetUsageService
+	apiService        *services.APIService
 )
 
 var (
+	router *mux.Router
 	currIP string
 )
 
@@ -53,9 +54,6 @@ func startAPI() {
 		ReturnNilOnErr: false,
 	})
 
-	//creating new router
-	router := NewRouter()
-
 	//Create and init retryService
 	retryService = services.NewRetryService(db, config)
 	retryService.Callback = subCB{retryService: retryService}
@@ -83,9 +81,13 @@ func startAPI() {
 	}
 	log.Debugf("Servers IP address is '%s'\n", ipRefreshService.IP)
 
-	//Start the WebServer
-	startWebServer(router, config)
+	//Create a new router
+	router = NewRouter()
+	//Create the APIService and start it
+	apiService = services.NewAPIService(db, config, router)
+	apiService.Start()
 
+	//Startup done
 	log.Info("Startup completed")
 
 	//Start loop to tick the services
@@ -96,6 +98,20 @@ func startAPI() {
 		cleanService.Tick()
 		ipRefreshService.Tick()
 	}
+}
+
+//Close db connection on exit
+func initExitCallback(db *dbhelper.DBhelper) context.Context {
+	ctx := context.Background()
+	goodbye.Notify(ctx)
+	goodbye.Register(func(ctx context.Context, sig os.Signal) {
+		if db.DB != nil {
+			if !LogError(db.DB.Close()) {
+				log.Info("DB closed")
+			}
+		}
+	})
+	return ctx
 }
 
 //Callback for notifications
@@ -119,36 +135,4 @@ func (subCB subCB) OnError(subscription models.Subscription, source models.Sourc
 
 func (subCB subCB) OnUnsubscribe(subscription models.Subscription) {
 	subscription.Remove(db)
-}
-
-func startWebServer(router *mux.Router, config *models.ConfigStruct) {
-	//Start HTTPS if enabled
-	if config.Webserver.HTTPS.Enabled {
-		log.Infof("Server started TLS on port (%s)\n", config.Webserver.HTTPS.ListenAddress)
-		go (func() {
-			log.Fatal(http.ListenAndServeTLS(config.Webserver.HTTPS.ListenAddress, config.Webserver.HTTPS.CertFile, config.Webserver.HTTPS.KeyFile, router))
-		})()
-	}
-
-	//Start HTTP if enabled
-	if config.Webserver.HTTP.Enabled {
-		log.Infof("Server started HTTP on port (%s)\n", config.Webserver.HTTP.ListenAddress)
-		go (func() {
-			log.Fatal(http.ListenAndServe(config.Webserver.HTTP.ListenAddress, router))
-		})()
-	}
-}
-
-//Close db connection on exit
-func initExitCallback(db *dbhelper.DBhelper) context.Context {
-	ctx := context.Background()
-	goodbye.Notify(ctx)
-	goodbye.Register(func(ctx context.Context, sig os.Signal) {
-		if db.DB != nil {
-			if !LogError(db.DB.Close()) {
-				log.Info("DB closed")
-			}
-		}
-	})
-	return ctx
 }
