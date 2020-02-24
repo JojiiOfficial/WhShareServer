@@ -84,6 +84,7 @@ func (retryService *RetryService) handle() {
 				if err != nil {
 					log.Println(err.Error())
 				}
+				retryService.Remove(subsPK)
 			} else {
 				retry.TryNr++
 				retryService.calcNextRetryTime(retry)
