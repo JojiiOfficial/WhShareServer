@@ -19,7 +19,7 @@ type User struct {
 	IP         string    `db:"ip"`
 	IsValid    bool      `db:"isValid"`
 	RoleID     uint32    `db:"role"`
-	Role       Role      `db:"-"`
+	Role       Role      `db:"role"`
 }
 
 //TableUser the table in db for user
