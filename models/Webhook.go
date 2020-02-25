@@ -1,16 +1,18 @@
 package models
 
 import (
+	"time"
+
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
 //Webhook the actual webhook from a server
 type Webhook struct {
-	PkID     uint32 `db:"pk_id" orm:"pk,ai"`
-	SourceID uint32 `db:"sourceID"`
-	Headers  string `db:"header"`
-	Payload  string `db:"payload"`
-	Received string `db:"received"`
+	PkID     uint32    `db:"pk_id" orm:"pk,ai"`
+	SourceID uint32    `db:"sourceID"`
+	Headers  string    `db:"header"`
+	Payload  string    `db:"payload"`
+	Received time.Time `db:"received"`
 }
 
 //TableWebhooks table for the webhooks
@@ -28,20 +30,9 @@ func GetWebhookByPK(db *dbhelper.DBhelper, webhookID uint32) (*Webhook, error) {
 
 //Insert webhook
 func (webhook *Webhook) Insert(db *dbhelper.DBhelper) error {
-	//Insert webhook into DB
-	rs, err := db.Execf("INSERT INTO %s (sourceID, header, payload) VALUES(?,?,?)", []string{TableWebhooks}, webhook.SourceID, webhook.Headers, webhook.Payload)
-	if err != nil {
-		return err
-	}
-
-	//Get new pk_id
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-
-	//Set pkID of webhook
-	webhook.PkID = uint32(id)
-
-	return nil
+	_, err := db.Insert(webhook, &dbhelper.InsertOption{
+		TableName: TableWebhooks,
+		SetPK:     true,
+	})
+	return err
 }

@@ -71,6 +71,7 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 
 	source := &models.Source{
 		Creator:     *user,
+		CreatorID:   user.Pkid,
 		IsPrivate:   request.Private,
 		Name:        request.Name,
 		Mode:        request.Mode,

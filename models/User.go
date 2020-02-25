@@ -1,20 +1,25 @@
 package models
 
 import (
+	"time"
+
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
 //User user in db
 type User struct {
-	Pkid       uint32 `db:"pk_id" orm:"pk,ai"`
-	Username   string `db:"username"`
-	Traffic    uint32 `db:"traffic"`
-	HookCalls  uint32 `db:"hookCalls"`
-	ResetIndex uint16 `db:"resetIndex"`
-	CreatedAt  string `db:"createdAt"`
-	IsValid    bool   `db:"isValid"`
-	Role       Role   `db:"role"`
+	Pkid       uint32    `db:"pk_id" orm:"pk,ai"`
+	Username   string    `db:"username"`
+	Password   string    `db:"password"`
+	Traffic    uint32    `db:"traffic"`
+	HookCalls  uint32    `db:"hookCalls"`
+	ResetIndex uint16    `db:"resetIndex"`
+	CreatedAt  time.Time `db:"createdAt"`
+	IP         string    `db:"ip"`
+	IsValid    bool      `db:"isValid"`
+	RoleID     uint32    `db:"role"`
+	Role       Role      `db:"-"`
 }
 
 //TableUser the table in db for user
@@ -69,7 +74,15 @@ func UserExists(db *dbhelper.DBhelper, username string) (bool, error) {
 
 //InsertUser inserts user into db
 func InsertUser(db *dbhelper.DBhelper, username, password, ip string) error {
-	_, err := db.Execf("INSERT INTO %s (username, password, ip) VALUES(?,?,?)", []string{TableUser}, username, password, ip)
+	_, err := db.Insert(User{
+		Username: username,
+		Password: password,
+		IsValid:  true,
+		IP:       ip,
+	}, &dbhelper.InsertOption{
+		TableName:    TableUser,
+		IgnoreFields: []string{"role", "traffic", "hookCalls", "resetIndex"},
+	})
 	return err
 }
 

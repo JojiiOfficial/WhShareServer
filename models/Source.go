@@ -1,22 +1,24 @@
 package models
 
 import (
+	"time"
+
 	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
 //Source a webhook source
 type Source struct {
-	PkID         uint32 `db:"pk_id" orm:"pk,ai" json:"-"`
-	Name         string `db:"name" json:"name"`
-	SourceID     string `db:"sourceID" json:"sourceID"`
-	Description  string `db:"description" json:"description"`
-	Secret       string `db:"secret" json:"secret"`
-	CreatorID    uint32 `db:"creator" json:"-"`
-	CreationTime string `db:"creationTime" json:"crTime"`
-	IsPrivate    bool   `db:"private" json:"isPrivate"`
-	Mode         uint8  `db:"mode" json:"mode"`
-	Creator      User   `db:"-" json:"-"`
+	PkID         uint32    `db:"pk_id" orm:"pk,ai" json:"-"`
+	Name         string    `db:"name" json:"name"`
+	SourceID     string    `db:"sourceID" json:"sourceID"`
+	Description  string    `db:"description" json:"description"`
+	Secret       string    `db:"secret" json:"secret"`
+	CreatorID    uint32    `db:"creator" json:"-"`
+	CreationTime time.Time `db:"creationTime" json:"crTime"`
+	IsPrivate    bool      `db:"private" json:"isPrivate"`
+	Mode         uint8     `db:"mode" json:"mode"`
+	Creator      User      `db:"-" orm:"-" json:"-"`
 }
 
 //TableSources the db tableName for sources
@@ -54,21 +56,15 @@ func GetSourceByPK(db *dbhelper.DBhelper, pkID uint32) (*Source, error) {
 
 //Insert source into DB
 func (source *Source) Insert(db *dbhelper.DBhelper) error {
-	secret := gaw.RandString(48)
-	sid := gaw.RandString(32)
-	rs, err := db.Execf("INSERT INTO %s (creator, name, description, secret, private, sourceID, mode) VALUES(?,?,?,?,?,?,?)", []string{TableSources}, source.Creator.Pkid, source.Name, source.Description, secret, source.IsPrivate, sid, source.Mode)
-	if err != nil {
-		return err
-	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	source.PkID = uint32(id)
-	source.Secret = secret
-	source.SourceID = sid
+	source.Secret = gaw.RandString(48)
+	source.SourceID = gaw.RandString(32)
 
-	return nil
+	_, err := db.Insert(source, &dbhelper.InsertOption{
+		TableName: TableSources,
+		SetPK:     true,
+	})
+
+	return err
 }
 
 //Update source

@@ -14,14 +14,14 @@ import (
 
 //Subscription the subscription a user made
 type Subscription struct {
-	PkID           uint32 `db:"pk_id" orm:"pk,ai"`
-	SubscriptionID string `db:"subscriptionID"`
-	UserID         uint32 `db:"subscriber"`
-	Source         uint32 `db:"source"`
-	CallbackURL    string `db:"callbackURL"`
-	Time           string `db:"time"`
-	IsValid        bool   `db:"isValid"`
-	LastTrigger    string `db:"lastTrigger"`
+	PkID           uint32    `db:"pk_id" orm:"pk,ai,nn"`
+	SubscriptionID string    `db:"subscriptionID"`
+	UserID         uint32    `db:"subscriber"`
+	Source         uint32    `db:"source"`
+	CallbackURL    string    `db:"callbackURL"`
+	Time           time.Time `db:"time"`
+	IsValid        bool      `db:"isValid"`
+	LastTrigger    string    `db:"lastTrigger"`
 }
 
 //TableSubscriptions the tableName for subscriptions
@@ -82,7 +82,7 @@ func (subscription *Subscription) Notify(db *dbhelper.DBhelper, webhook *Webhook
 	setHeadersFromStr(webhook.Headers, &req.Header)
 
 	//Add header for client
-	req.Header.Set(constants.HeaderReceived, webhook.Received)
+	req.Header.Set(constants.HeaderReceived, webhook.Received.Format(time.Stamp))
 	req.Header.Set(constants.HeaderSource, source.SourceID)
 	req.Header.Set(constants.HeaderSubsID, subscription.SubscriptionID)
 
@@ -157,16 +157,11 @@ func (subscription *Subscription) UpdateCallback(db *dbhelper.DBhelper, newCallb
 //Insert inserts the subscription into the db
 func (subscription *Subscription) Insert(db *dbhelper.DBhelper) error {
 	subscription.SubscriptionID = gaw.RandString(32)
-	rs, err := db.Execf("INSERT INTO %s (subscriptionID, subscriber, source, callbackURL) VALUES (?,?,?,?)", []string{TableSubscriptions}, subscription.SubscriptionID, subscription.UserID, subscription.Source, subscription.CallbackURL)
-	if err != nil {
-		return err
-	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	subscription.PkID = uint32(id)
-	return nil
+	_, err := db.Insert(subscription, &dbhelper.InsertOption{
+		TableName: TableSubscriptions,
+		SetPK:     true,
+	})
+	return err
 }
 
 func (source *Source) getSubscriptions(db *dbhelper.DBhelper) ([]Subscription, error) {

@@ -1,17 +1,19 @@
 package models
 
 import (
+	"time"
+
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 )
 
 //LoginSession a login session
 type LoginSession struct {
-	PkID    uint32 `db:"pk_id" orm:"pk,ai"`
-	UserID  uint32 `db:"userID"`
-	Token   string `db:"sessionToken"`
-	Created string `db:"created"`
-	IsValid bool   `db:"isValid"`
-	User    User
+	PkID    uint32    `db:"pk_id" orm:"pk,ai"`
+	UserID  uint32    `db:"userID"`
+	Token   string    `db:"sessionToken"`
+	Created time.Time `db:"created"`
+	IsValid bool      `db:"isValid"`
+	User    User      `db:"-" orm:"-"`
 }
 
 //TableLoginSession the table in db for login sessions
@@ -19,16 +21,13 @@ const TableLoginSession = "LoginSessions"
 
 //Insert insert a loginSession into the database
 func (session *LoginSession) Insert(db *dbhelper.DBhelper) error {
-	rs, err := db.Execf("INSERT INTO %s (sessionToken, userID) VALUES(?,?)", []string{TableLoginSession}, session.Token, session.UserID)
-	if err != nil {
-		return err
-	}
-	id, err := rs.LastInsertId()
-	if err != nil {
-		return err
-	}
-	session.PkID = uint32(id)
-	return nil
+	_, err := db.Insert(session, &dbhelper.InsertOption{
+		TableName:    TableLoginSession,
+		SetPK:        true,
+		IgnoreFields: []string{"isValid"},
+	})
+
+	return err
 }
 
 //GetAllSessionTokens returns all valid sessions

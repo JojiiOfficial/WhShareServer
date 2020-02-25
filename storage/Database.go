@@ -18,6 +18,7 @@ func ConnectDB(config *models.ConfigStruct, isDebug, nocolor bool) (*dbhelper.DB
 		config.Server.Database.Host,
 		strconv.Itoa(config.Server.Database.DatabasePort),
 		config.Server.Database.Database,
+		"parseTime=True",
 	)
 
 	if err != nil {
