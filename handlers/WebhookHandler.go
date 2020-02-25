@@ -37,6 +37,7 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 		c := make(chan bool, 1)
 		log.Infof("New webhook: %s\n", source.Name)
 		msg := "error"
+		statusCode := http.StatusInternalServerError
 
 		go (func(req *http.Request) {
 			userChan := make(chan *models.User, 1)
@@ -65,8 +66,9 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 
 			//return on error or user not allowed to send hooks
 			if user == nil || user.Role.MaxTraffic == 0 || user.Role.MaxHookCalls == 0 {
-				c <- false
 				msg = "not allowed to send hooks"
+				statusCode = http.StatusForbidden
+				c <- false
 				return
 			}
 
@@ -89,6 +91,7 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 			if (user.Role.MaxTraffic != -1 && uint32(user.Role.MaxTraffic*1024) <= (user.Traffic+reqTraffic)) ||
 				(user.Role.MaxHookCalls != -1 && user.Role.MaxHookCalls < int(user.HookCalls+1)) {
 				msg = "traffic/hookCall limit exceeded"
+				statusCode = http.StatusForbidden
 				c <- false
 				return
 			}
@@ -124,7 +127,7 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 		if <-c {
 			sendResponse(w, models.ResponseSuccess, "Success", nil)
 		} else {
-			sendResponse(w, models.ResponseError, msg, nil, 500)
+			sendResponse(w, models.ResponseError, msg, nil, statusCode)
 		}
 
 	} else {

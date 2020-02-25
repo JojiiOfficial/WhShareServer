@@ -31,10 +31,10 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 
 	//Check if user is allowed to create sources
 	if request.Private && user.Role.MaxPrivSources == 0 {
-		sendResponse(w, models.ResponseError, "You are not allowed to have private sources", nil, 403)
+		sendResponse(w, models.ResponseError, "You are not allowed to have private sources", nil, http.StatusForbidden)
 		return
 	} else if !request.Private && user.Role.MaxPubSources == 0 {
-		sendResponse(w, models.ResponseError, "You are not allowed to have public sources", nil, 403)
+		sendResponse(w, models.ResponseError, "You are not allowed to have public sources", nil, http.StatusForbidden)
 		return
 	}
 
@@ -47,12 +47,12 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	//Check for source limit
 	if request.Private && user.Role.MaxPrivSources != -1 {
 		if scount >= uint(user.Role.MaxPrivSources) {
-			sendResponse(w, models.ResponseError, "Limit for private sources exceeded", nil, 403)
+			sendResponse(w, models.ResponseError, "Limit for private sources exceeded", nil, http.StatusForbidden)
 			return
 		}
 	} else if !request.Private && user.Role.MaxPubSources != -1 {
 		if scount >= uint(user.Role.MaxPubSources) {
-			sendResponse(w, models.ResponseError, "Limit for public sources exceeded", nil, 403)
+			sendResponse(w, models.ResponseError, "Limit for public sources exceeded", nil, http.StatusForbidden)
 			return
 		}
 	}

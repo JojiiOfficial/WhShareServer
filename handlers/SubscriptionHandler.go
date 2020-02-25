@@ -153,10 +153,10 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 		}
 
 		if user.Role.MaxSubscriptions == 0 {
-			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, 403)
+			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, http.StatusForbidden)
 			return
 		} else if user.Role.MaxSubscriptions != -1 && userSubscriptions >= uint32(user.Role.MaxSubscriptions) {
-			sendResponse(w, models.ResponseError, "Subscription limit exceeded", nil, 403)
+			sendResponse(w, models.ResponseError, "Subscription limit exceeded", nil, http.StatusForbidden)
 			return
 		}
 
