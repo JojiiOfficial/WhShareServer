@@ -8,7 +8,6 @@ type CredentialRequest struct {
 
 //SourceAddRequest request to create a source
 type SourceAddRequest struct {
-	Token       string `json:"token"`
 	Name        string `json:"name"`
 	Description string `json:"descr"`
 	Private     bool   `json:"private"`
@@ -17,7 +16,6 @@ type SourceAddRequest struct {
 
 //SubscriptionRequest request to subscribe
 type SubscriptionRequest struct {
-	Token       string `json:"token"`
 	SourceID    string `json:"sid"`
 	CallbackURL string `json:"cbUrl"`
 }
@@ -29,19 +27,12 @@ type UnsubscribeRequest struct {
 
 //SubscriptionUpdateCallbackRequest request for updating callback
 type SubscriptionUpdateCallbackRequest struct {
-	Token          string `json:"token"`
 	SubscriptionID string `json:"subID"`
 	CallbackURL    string `json:"cbUrl"`
 }
 
 //SourceRequest request containing sourceData
 type SourceRequest struct {
-	Token    string `json:"token"`
 	SourceID string `json:"sid,omitempty"`
 	Content  string `json:"content,omitempty"`
-}
-
-//TokenOnlyRequest a request containing only a token
-type TokenOnlyRequest struct {
-	Token string `json:"token"`
 }

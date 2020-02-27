@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	gaw "github.com/JojiiOfficial/GoAw"
@@ -23,17 +22,28 @@ type handlerData struct {
 //Route for REST
 type Route struct {
 	Name        string
-	Method      string
+	Method      HTTPMethod
 	Pattern     string
 	HandlerFunc RouteFunction
-	HandlerType handlerType
+	HandlerType requestType
 }
 
-type handlerType uint8
+//HTTPMethod http method. GET,kPOST, DELETE, HEADER, etc...
+type HTTPMethod string
+
+//HTTP methods
+const (
+	GetMethod    HTTPMethod = "GET"
+	POSTMethod   HTTPMethod = "POST"
+	DeleteMethod HTTPMethod = "DELETE"
+)
+
+type requestType uint8
 
 const (
-	defaultHandlerType handlerType = iota
-	sessionHandlerType
+	defaultRequest requestType = iota
+	sessionRequest
+	optionalTokenRequest
 )
 
 //Routes all REST routes
@@ -43,32 +53,82 @@ type Routes []Route
 type RouteFunction func(*dbhelper.DBhelper, handlerData, http.ResponseWriter, *http.Request)
 
 //Routes
-var routes = Routes{
-	//User
-	Route{"login", "POST", "/user/login", Login, defaultHandlerType},
-	Route{"register", "POST", "/user/create", Register, defaultHandlerType},
+var (
+	routes = Routes{
+		//User
+		Route{
+			Name:        "login",
+			Pattern:     "/user/login",
+			Method:      POSTMethod,
+			HandlerFunc: Login,
+			HandlerType: defaultRequest,
+		},
+		Route{
+			Name:        "register",
+			Pattern:     "/user/create",
+			Method:      POSTMethod,
+			HandlerFunc: Register,
+			HandlerType: defaultRequest,
+		},
 
-	//Sources
-	Route{"create source", "POST", "/source/create", CreateSource, sessionHandlerType},
-	Route{"update source", "POST", "/source/update/{action}", UpdateSource, sessionHandlerType},
-	Route{"listSources", "POST", "/sources", ListSources, sessionHandlerType},
+		//Sources
+		Route{
+			Name:        "create source",
+			Pattern:     "/source/create",
+			Method:      POSTMethod,
+			HandlerFunc: CreateSource,
+			HandlerType: sessionRequest,
+		},
+		Route{
+			Name:        "update source",
+			Pattern:     "/source/update/{action}",
+			Method:      POSTMethod,
+			HandlerFunc: UpdateSource,
+			HandlerType: sessionRequest,
+		},
+		Route{
+			Name:        "list sources",
+			Pattern:     "/sources",
+			Method:      POSTMethod,
+			HandlerFunc: ListSources,
+			HandlerType: sessionRequest,
+		},
 
-	//Subscriptions
-	Route{"subscribe", "POST", "/sub/add", Subscribe, defaultHandlerType},
-	Route{"unsubscribe", "POST", "/sub/remove", Unsubscribe, defaultHandlerType},
-	Route{"update callback", "POST", "/sub/updateCallback", UpdateCallbackURL, defaultHandlerType},
+		//Subscriptions
+		Route{
+			Name:        "subscribe",
+			Pattern:     "/sub/add",
+			Method:      POSTMethod,
+			HandlerFunc: Subscribe,
+			HandlerType: optionalTokenRequest,
+		},
+		Route{
+			Name:        "unsubscribe",
+			Pattern:     "/sub/remove",
+			Method:      POSTMethod,
+			HandlerFunc: Unsubscribe,
+			HandlerType: optionalTokenRequest,
+		},
+		Route{
+			Name:        "update callback",
+			Pattern:     "/sub/updateCallback",
+			Method:      POSTMethod,
+			HandlerFunc: UpdateCallbackURL,
+			HandlerType: optionalTokenRequest,
+		},
 
-	//Webhook
-	Route{"Post webhook", "POST", "/webhook/post/{sourceID}/{secret}", WebhookHandler, defaultHandlerType},
-	Route{"GET webhook", "GET", "/webhook/get/{sourceID}/{secret}", WebhookHandler, defaultHandlerType},
-}
+		//Webhooks
+		Route{"Post webhook", "POST", "/webhook/post/{sourceID}/{secret}", WebhookHandler, defaultRequest},
+		Route{"GET webhook", "GET", "/webhook/get/{sourceID}/{secret}", WebhookHandler, defaultRequest},
+	}
+)
 
 //NewRouter create new router
 func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, ownIP *string, callback models.SubscriberNotifyCallback) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	for _, route := range routes {
 		router.
-			Methods(route.Method).
+			Methods(string(route.Method)).
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(RouteHandler(db, route.HandlerType, &handlerData{
@@ -81,7 +141,7 @@ func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, ownIP *string
 }
 
 //RouteHandler logs stuff
-func RouteHandler(db *dbhelper.DBhelper, handlerType handlerType, handlerData *handlerData, inner RouteFunction, name string) http.Handler {
+func RouteHandler(db *dbhelper.DBhelper, requestType requestType, handlerData *handlerData, inner RouteFunction, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[%s] %s\n", r.Method, name)
 
@@ -91,8 +151,8 @@ func RouteHandler(db *dbhelper.DBhelper, handlerType handlerType, handlerData *h
 			return
 		}
 
-		//Validate handlerType
-		if !handlerType.validate(db, handlerData, r, w) {
+		//Validate request by requestType
+		if !requestType.validate(db, handlerData, r, w) {
 			return
 		}
 
@@ -104,21 +164,16 @@ func RouteHandler(db *dbhelper.DBhelper, handlerType handlerType, handlerData *h
 	})
 }
 
-//Returns false on error
-func (handlerType handlerType) validate(db *dbhelper.DBhelper, handlerData *handlerData, r *http.Request, w http.ResponseWriter) bool {
-	switch handlerType {
-	case sessionHandlerType:
+//Return false on error
+func (requestType requestType) validate(db *dbhelper.DBhelper, handlerData *handlerData, r *http.Request, w http.ResponseWriter) bool {
+	switch requestType {
+	case sessionRequest:
 		{
-			//Get auth header
-			authHeader, has := r.Header["Authorization"]
-			//Validate bearer token
-			if !has || len(authHeader) == 0 || !strings.HasPrefix(authHeader[0], "Bearer") || len(tokenFromBearerHeader(authHeader[0])) != 64 {
-				sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusUnauthorized)
-				return false
-			}
+			authHandler := NewAuthHandler(r, db)
+			user, err := authHandler.GetUserFromBearer()
 
-			user, _ := models.GetUserBySession(db, tokenFromBearerHeader(authHeader[0]))
-			if user == nil {
+			//validate user
+			if err != nil {
 				sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusUnauthorized)
 				return false
 			}
@@ -127,6 +182,31 @@ func (handlerType handlerType) validate(db *dbhelper.DBhelper, handlerData *hand
 			go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 			//Set user
+			handlerData.user = user
+		}
+	case optionalTokenRequest:
+		{
+			authHandler := NewAuthHandler(r, db)
+			user, err := authHandler.GetUserFromBearer()
+
+			//Return error if token is provided but invalid
+			if authHandler.IsInvalid(err) {
+				sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusUnauthorized)
+				return false
+			}
+
+			//Return error if user is invalid
+			if user != nil {
+				if !user.IsValid {
+					sendResponse(w, models.ResponseError, models.UserIsInvalidErr, nil, http.StatusUnauthorized)
+					return false
+				}
+
+				//Update users IP address
+				go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
+			}
+
+			//just set the user. If nil, no user was provided
 			handlerData.user = user
 		}
 	}

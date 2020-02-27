@@ -21,6 +21,8 @@ const (
 	WrongIntegerFormat string = "Number is string"
 	//MultipleSourceNameErr err name already exists
 	MultipleSourceNameErr string = "You can't have multiple sources with the same name"
+	//UserIsInvalidErr err if user is invalid
+	UserIsInvalidErr string = "user is invalid"
 )
 
 //ResponseStatus the status of response

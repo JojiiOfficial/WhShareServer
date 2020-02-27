@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/JojiiOfficial/WhShareServer/constants"
 	"github.com/JojiiOfficial/WhShareServer/models"
@@ -45,17 +44,6 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 		return
 	}
 
-	token := request.Token
-	if token == "-" {
-		token = ""
-	}
-
-	//Check if token available. return error if not valid, but given.
-	if len(token) > 0 && len(token) != 64 {
-		sendError("token invalid", w, models.InvalidTokenError, http.StatusForbidden)
-		return
-	}
-
 	if len(request.SubscriptionID) != 32 {
 		sendResponse(w, models.ResponseError, "Invalid subscriptionID length!", nil, http.StatusUnprocessableEntity)
 		return
@@ -69,19 +57,6 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 		return
 	}
 
-	//Determine the user
-	userID := uint32(1)
-	if len(token) > 0 {
-		user, err := models.GetUserBySession(db, token)
-		if err != nil {
-			LogError(err)
-			userID = 1
-		} else {
-			userID = user.Pkid
-			go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
-		}
-	}
-
 	subscription, err := models.GetSubscriptionBySubsID(db, request.SubscriptionID)
 	if err != nil {
 		sendServerError(w)
@@ -89,7 +64,7 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 	}
 
 	//Update only if it's users source or user not logged in and sourceID matches
-	if (userID > 1 && subscription.UserID == userID) || subscription.UserID == 1 {
+	if (handler.user != nil && subscription.UserID == handler.user.Pkid) || handler.user == nil {
 		err = subscription.UpdateCallback(db, request.CallbackURL)
 		if err != nil {
 			sendServerError(w)
@@ -105,28 +80,11 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 //-> /sub/add
 func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.SubscriptionRequest
-
 	if !parseUserInput(handler.config, w, r, &request) {
 		return
 	}
 
-	token := request.Token
-	if token == "-" {
-		token = ""
-	}
-
-	if isStructInvalid(request) {
-		sendError("input missing", w, models.InvalidTokenError, http.StatusUnprocessableEntity)
-		return
-	}
-
-	if checkPayloadSizes(w, constants.DefaultMaxPayloadSize, request.CallbackURL) {
-		return
-	}
-
-	//Check if token available. return error if not valid, but given.
-	if len(token) > 0 && len(token) != 64 {
-		sendError("token invalid", w, models.InvalidTokenError, http.StatusForbidden)
+	if checkInput(w, request, request.CallbackURL) {
 		return
 	}
 
@@ -135,27 +93,16 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 		return
 	}
 
-	//Determine the user
-	userID := uint32(1)
-	var user *models.User
-	var err error
-	if len(token) > 0 {
-		user, err = models.GetUserBySession(db, token)
-		if err != nil {
-			sendServerError(w)
-			return
-
-		}
-		go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
-
+	//If client is logged in
+	if handler.user != nil {
 		//Check if user can subscribe to sources
-		if !user.CanSubscribe() {
+		if !handler.user.CanSubscribe() {
 			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, http.StatusForbidden)
 			return
 		}
 
 		//Check if user subscription limit is exceeded
-		isLimitReached, err := user.IsSubscriptionLimitReached(db)
+		isLimitReached, err := handler.user.IsSubscriptionLimitReached(db)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -165,8 +112,6 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 			sendResponse(w, models.ResponseError, "Subscription limit exceeded", nil, http.StatusForbidden)
 			return
 		}
-
-		userID = user.Pkid
 	}
 
 	//Return if callback is invalid
@@ -182,9 +127,9 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 	}
 
 	var isSubscribed bool
-	if userID > 1 {
+	if handler.user != nil {
 		//Check if user already has subscripted to this source
-		isSubscribed, err = user.IsSubscribedTo(db, source.PkID)
+		isSubscribed, err = handler.user.IsSubscribedTo(db, source.PkID)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -205,11 +150,16 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 	}
 
 	//Check if user is allowed to subscribe to the given source
-	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
+	if source.IsPrivate && handler.user != nil && source.CreatorID == handler.user.Pkid || !source.IsPrivate {
+		uID := uint32(1)
+		if handler.user != nil {
+			uID = handler.user.Pkid
+		}
+
 		subs := models.Subscription{
 			Source:      source.PkID,
 			CallbackURL: request.CallbackURL,
-			UserID:      userID,
+			UserID:      uID,
 		}
 
 		err := subs.Insert(db)

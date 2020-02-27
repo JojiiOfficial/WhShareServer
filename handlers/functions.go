@@ -277,7 +277,3 @@ func getHeaderSize(headers http.Header) uint32 {
 	}
 	return size
 }
-
-func tokenFromBearerHeader(header string) string {
-	return strings.TrimSpace(strings.ReplaceAll(header, "Bearer", ""))
-}
