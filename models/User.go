@@ -43,6 +43,36 @@ func (user *User) GetSourceCount(db *dbhelper.DBhelper, private bool) (uint, err
 	return c, err
 }
 
+//IsSubscribedTo if user subscribed the given source
+func (user *User) IsSubscribedTo(db *dbhelper.DBhelper, sourceID uint32) (bool, error) {
+	var c int
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=? AND source=?", []string{TableSubscriptions}, user.Pkid, sourceID)
+	if err != nil {
+		return false, err
+	}
+	return c > 0, nil
+}
+
+//UpdateIP for an user
+func (user *User) UpdateIP(db *dbhelper.DBhelper, ip string) error {
+	return updateIP(db, user.Pkid, ip)
+}
+
+//AddHookCall adds hookCall (increase hookCall count and traffic)
+func (user *User) AddHookCall(db *dbhelper.DBhelper, addTraffic uint32) error {
+	_, err := db.Execf("UPDATE %s SET traffic=traffic+?, hookCalls=hookCalls+1 WHERE pk_id=?", []string{TableUser}, addTraffic, user.Pkid)
+	return err
+}
+
+//GetSubscriptionCount gets count of subscriptions for an user
+func (user *User) GetSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
+	var c uint32
+	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=?", []string{TableSubscriptions}, user.Pkid)
+	return c, err
+}
+
+//-----------  Database queries --
+
 //GetUserBySession get user by sessionToken
 func GetUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 	var user User
@@ -84,34 +114,6 @@ func InsertUser(db *dbhelper.DBhelper, username, password, ip string) error {
 		IgnoreFields: []string{"role", "traffic", "hookCalls", "resetIndex"},
 	})
 	return err
-}
-
-//IsSubscribedTo if user subscribed the given source
-func (user *User) IsSubscribedTo(db *dbhelper.DBhelper, sourceID uint32) (bool, error) {
-	var c int
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=? AND source=?", []string{TableSubscriptions}, user.Pkid, sourceID)
-	if err != nil {
-		return false, err
-	}
-	return c > 0, nil
-}
-
-//UpdateIP for an user
-func (user *User) UpdateIP(db *dbhelper.DBhelper, ip string) error {
-	return updateIP(db, user.Pkid, ip)
-}
-
-//AddHookCall adds hookCall (increase hookCall count and traffic)
-func (user *User) AddHookCall(db *dbhelper.DBhelper, addTraffic uint32) error {
-	_, err := db.Execf("UPDATE %s SET traffic=traffic+?, hookCalls=hookCalls+1 WHERE pk_id=?", []string{TableUser}, addTraffic, user.Pkid)
-	return err
-}
-
-//GetSubscriptionCount gets count of subscriptions for an user
-func (user *User) GetSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
-	var c uint32
-	err := db.QueryRowf(&c, "SELECT COUNT(*) FROM %s WHERE subscriber=?", []string{TableSubscriptions}, user.Pkid)
-	return c, err
 }
 
 //LoginQuery loginQuery

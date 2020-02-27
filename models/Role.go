@@ -13,3 +13,8 @@ type Role struct {
 
 //TableRoles the db tableName for the roles
 const TableRoles = "Roles"
+
+//CanHaveSource returns true if a role allows having private/public a source
+func (role Role) CanHaveSource(private bool) bool {
+	return !((private && role.MaxPrivSources == 0) || (!private && role.MaxPubSources == 0))
+}

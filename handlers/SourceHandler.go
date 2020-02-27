@@ -13,6 +13,7 @@ import (
 //-> /source/create
 func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	var request models.SourceAddRequest
+
 	if !parseUserInput(handlerData.config, w, r, &request) {
 		return
 	}
@@ -23,21 +24,19 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 
 	user, err := models.GetUserBySession(db, request.Token)
 	if err != nil {
-		sendError("Invalid token", w, models.InvalidTokenError, 403)
+		sendError("Invalid token", w, models.InvalidTokenError, http.StatusForbidden)
 		return
 	}
 
 	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	//Check if user is allowed to create sources
-	if request.Private && user.Role.MaxPrivSources == 0 {
-		sendResponse(w, models.ResponseError, "You are not allowed to have private sources", nil, http.StatusForbidden)
-		return
-	} else if !request.Private && user.Role.MaxPubSources == 0 {
-		sendResponse(w, models.ResponseError, "You are not allowed to have public sources", nil, http.StatusForbidden)
+	if !user.Role.CanHaveSource(request.Private) {
+		sendResponse(w, models.ResponseError, "You are not allowed to have this kind of source", nil, http.StatusForbidden)
 		return
 	}
 
+	//Get count of sources
 	scount, err := user.GetSourceCount(db, request.Private)
 	if err != nil {
 		sendServerError(w)
