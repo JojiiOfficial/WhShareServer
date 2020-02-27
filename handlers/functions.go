@@ -224,14 +224,9 @@ func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...s
 	return false
 }
 
-func checkInput(w http.ResponseWriter, request interface{}, token string, contents ...string) bool {
+func checkInput(w http.ResponseWriter, request interface{}, contents ...string) bool {
 	if isStructInvalid(request) {
 		sendError("input missing", w, models.WrongInputFormatError, 422)
-		return true
-	}
-
-	if len(token) != 64 {
-		sendError("token invalid", w, models.InvalidTokenError, 403)
 		return true
 	}
 
@@ -281,4 +276,8 @@ func getHeaderSize(headers http.Header) uint32 {
 		}
 	}
 	return size
+}
+
+func tokenFromBearerHeader(header string) string {
+	return strings.TrimSpace(strings.ReplaceAll(header, "Bearer", ""))
 }

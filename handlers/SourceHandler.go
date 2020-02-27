@@ -18,46 +18,38 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 		return
 	}
 
-	if checkInput(w, request, request.Token, request.Name) {
+	if checkInput(w, request, request.Name) {
 		return
 	}
-
-	user, err := models.GetUserBySession(db, request.Token)
-	if err != nil {
-		sendError("Invalid token", w, models.InvalidTokenError, http.StatusForbidden)
-		return
-	}
-
-	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	//Check if user is allowed to create sources
-	if !user.Role.CanHaveSource(request.Private) {
+	if !handlerData.user.Role.CanHaveSource(request.Private) {
 		sendResponse(w, models.ResponseError, "You are not allowed to have this kind of source", nil, http.StatusForbidden)
 		return
 	}
 
 	//Get count of sources
-	scount, err := user.GetSourceCount(db, request.Private)
+	scount, err := handlerData.user.GetSourceCount(db, request.Private)
 	if err != nil {
 		sendServerError(w)
 		return
 	}
 
 	//Check for source limit
-	if request.Private && user.Role.MaxPrivSources != -1 {
-		if scount >= uint(user.Role.MaxPrivSources) {
+	if request.Private && handlerData.user.Role.MaxPrivSources != -1 {
+		if scount >= uint(handlerData.user.Role.MaxPrivSources) {
 			sendResponse(w, models.ResponseError, "Limit for private sources exceeded", nil, http.StatusForbidden)
 			return
 		}
-	} else if !request.Private && user.Role.MaxPubSources != -1 {
-		if scount >= uint(user.Role.MaxPubSources) {
+	} else if !request.Private && handlerData.user.Role.MaxPubSources != -1 {
+		if scount >= uint(handlerData.user.Role.MaxPubSources) {
 			sendResponse(w, models.ResponseError, "Limit for public sources exceeded", nil, http.StatusForbidden)
 			return
 		}
 	}
 
 	//Check if user already has a source with this name
-	nameExitst, err := user.HasSourceWithName(db, request.Name)
+	nameExitst, err := handlerData.user.HasSourceWithName(db, request.Name)
 	if err != nil {
 		sendServerError(w)
 		return
@@ -69,8 +61,8 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	}
 
 	source := &models.Source{
-		Creator:     *user,
-		CreatorID:   user.Pkid,
+		Creator:     *handlerData.user,
+		CreatorID:   handlerData.user.Pkid,
 		IsPrivate:   request.Private,
 		Name:        request.Name,
 		Mode:        request.Mode,
@@ -98,25 +90,13 @@ func ListSources(db *dbhelper.DBhelper, handlerData handlerData, w http.Response
 		return
 	}
 
-	if checkInput(w, request, request.Token) {
-		return
-	}
-
 	if request.SourceID == "-" {
 		request.SourceID = ""
 	}
 
-	user, err := models.GetUserBySession(db, request.Token)
-	if err != nil {
-		sendError("Invalid token", w, models.InvalidTokenError, 403)
-		return
-	}
-
-	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
-
 	var response models.ListSourcesResponse
 	if len(request.SourceID) == 0 {
-		sources, err := models.GetSourcesForUser(db, user.Pkid)
+		sources, err := models.GetSourcesForUser(db, handlerData.user.Pkid)
 		if err != nil {
 			sendServerError(w)
 			return
@@ -132,7 +112,7 @@ func ListSources(db *dbhelper.DBhelper, handlerData handlerData, w http.Response
 			sendServerError(w)
 			return
 		}
-		if user.Pkid != source.CreatorID {
+		if handlerData.user.Pkid != source.CreatorID {
 			source.CreatorID = 0
 			source.Secret = ""
 			if source.IsPrivate {
@@ -171,17 +151,9 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 		return
 	}
 
-	if checkInput(w, request, request.Token, request.Content) {
+	if checkInput(w, request, request.Content) {
 		return
 	}
-
-	user, err := models.GetUserBySession(db, request.Token)
-	if err != nil {
-		sendError("Invalid token", w, models.InvalidTokenError, 403)
-		return
-	}
-
-	go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
 
 	source, err := models.GetSourceFromSourceID(db, request.SourceID)
 	if err != nil {
@@ -195,7 +167,7 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 		return
 	}
 
-	if source.CreatorID != user.Pkid {
+	if source.CreatorID != handlerData.user.Pkid {
 		sendError("user not allowed", w, models.ActionNotAllowed, 403)
 		return
 	}
@@ -216,7 +188,7 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	case actions[2]:
 		{
 			//rename
-			has, err := user.HasSourceWithName(db, request.Content)
+			has, err := handlerData.user.HasSourceWithName(db, request.Content)
 			if err != nil {
 				sendServerError(w)
 				return

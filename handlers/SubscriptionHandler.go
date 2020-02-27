@@ -23,6 +23,7 @@ func Unsubscribe(db *dbhelper.DBhelper, handlerData handlerData, w http.Response
 
 	subscription, err := models.GetSubscriptionBySubsID(db, request.SubscriptionID)
 	if err != nil {
+		//TODO send subscription not found
 		sendServerError(w)
 		return
 	}

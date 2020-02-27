@@ -3,8 +3,10 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	gaw "github.com/JojiiOfficial/GoAw"
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/JojiiOfficial/WhShareServer/models"
 	"github.com/gorilla/mux"
@@ -14,6 +16,7 @@ import (
 type handlerData struct {
 	config             *models.ConfigStruct
 	ownIP              *string
+	user               *models.User
 	subscriberCallback models.SubscriberNotifyCallback
 }
 
@@ -23,7 +26,15 @@ type Route struct {
 	Method      string
 	Pattern     string
 	HandlerFunc RouteFunction
+	HandlerType handlerType
 }
+
+type handlerType uint8
+
+const (
+	defaultHandlerType handlerType = iota
+	sessionHandlerType
+)
 
 //Routes all REST routes
 type Routes []Route
@@ -34,22 +45,22 @@ type RouteFunction func(*dbhelper.DBhelper, handlerData, http.ResponseWriter, *h
 //Routes
 var routes = Routes{
 	//User
-	Route{"login", "POST", "/user/login", Login},
-	Route{"register", "POST", "/user/create", Register},
+	Route{"login", "POST", "/user/login", Login, defaultHandlerType},
+	Route{"register", "POST", "/user/create", Register, defaultHandlerType},
 
 	//Sources
-	Route{"create source", "POST", "/source/create", CreateSource},
-	Route{"update source", "POST", "/source/update/{action}", UpdateSource},
-	Route{"listSources", "POST", "/sources", ListSources},
+	Route{"create source", "POST", "/source/create", CreateSource, sessionHandlerType},
+	Route{"update source", "POST", "/source/update/{action}", UpdateSource, sessionHandlerType},
+	Route{"listSources", "POST", "/sources", ListSources, sessionHandlerType},
 
 	//Subscriptions
-	Route{"subscribe", "POST", "/sub/add", Subscribe},
-	Route{"unsubscribe", "POST", "/sub/remove", Unsubscribe},
-	Route{"update callback", "POST", "/sub/updateCallback", UpdateCallbackURL},
+	Route{"subscribe", "POST", "/sub/add", Subscribe, defaultHandlerType},
+	Route{"unsubscribe", "POST", "/sub/remove", Unsubscribe, defaultHandlerType},
+	Route{"update callback", "POST", "/sub/updateCallback", UpdateCallbackURL, defaultHandlerType},
 
 	//Webhook
-	Route{"Post webhook", "POST", "/webhook/post/{sourceID}/{secret}", WebhookHandler},
-	Route{"GET webhook", "GET", "/webhook/get/{sourceID}/{secret}", WebhookHandler},
+	Route{"Post webhook", "POST", "/webhook/post/{sourceID}/{secret}", WebhookHandler, defaultHandlerType},
+	Route{"GET webhook", "GET", "/webhook/get/{sourceID}/{secret}", WebhookHandler, defaultHandlerType},
 }
 
 //NewRouter create new router
@@ -60,7 +71,7 @@ func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, ownIP *string
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(RouteHandler(db, &handlerData{
+			Handler(RouteHandler(db, route.HandlerType, &handlerData{
 				config:             config,
 				subscriberCallback: callback,
 				ownIP:              ownIP,
@@ -70,7 +81,7 @@ func NewRouter(db *dbhelper.DBhelper, config *models.ConfigStruct, ownIP *string
 }
 
 //RouteHandler logs stuff
-func RouteHandler(db *dbhelper.DBhelper, handlerData *handlerData, inner RouteFunction, name string) http.Handler {
+func RouteHandler(db *dbhelper.DBhelper, handlerType handlerType, handlerData *handlerData, inner RouteFunction, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[%s] %s\n", r.Method, name)
 
@@ -78,6 +89,32 @@ func RouteHandler(db *dbhelper.DBhelper, handlerData *handlerData, inner RouteFu
 
 		if validateHeader(handlerData.config, w, r) {
 			return
+		}
+
+		switch handlerType {
+		case sessionHandlerType:
+			{
+				//Get auth header
+				authHeader, has := r.Header["Authorization"]
+				//Validate bearer token
+				if !has || len(authHeader) == 0 || !strings.HasPrefix(authHeader[0], "Bearer") || len(tokenFromBearerHeader(authHeader[0])) != 64 {
+
+					sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusForbidden)
+					return
+				}
+
+				user, _ := models.GetUserBySession(db, tokenFromBearerHeader(authHeader[0]))
+				if user == nil {
+					sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusForbidden)
+					return
+				}
+
+				//Update IP
+				go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
+
+				//Set user
+				handlerData.user = user
+			}
 		}
 
 		//Process request
