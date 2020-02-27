@@ -23,29 +23,22 @@ func CreateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	}
 
 	//Check if user is allowed to create sources
-	if !handlerData.user.Role.CanHaveSource(request.Private) {
+	if !handlerData.user.CanCreateSource(request.Private) {
 		sendResponse(w, models.ResponseError, "You are not allowed to have this kind of source", nil, http.StatusForbidden)
 		return
 	}
 
-	//Get count of sources
-	scount, err := handlerData.user.GetSourceCount(db, request.Private)
+	//Check if user source limit is reached
+	isLimitReached, err := handlerData.user.IsSourceLimitReached(db, request.Private)
 	if err != nil {
+		//TODO send user not found
 		sendServerError(w)
 		return
 	}
 
-	//Check for source limit
-	if request.Private && handlerData.user.Role.MaxPrivSources != -1 {
-		if scount >= uint(handlerData.user.Role.MaxPrivSources) {
-			sendResponse(w, models.ResponseError, "Limit for private sources exceeded", nil, http.StatusForbidden)
-			return
-		}
-	} else if !request.Private && handlerData.user.Role.MaxPubSources != -1 {
-		if scount >= uint(handlerData.user.Role.MaxPubSources) {
-			sendResponse(w, models.ResponseError, "Limit for public sources exceeded", nil, http.StatusForbidden)
-			return
-		}
+	if isLimitReached {
+		sendResponse(w, models.ResponseError, "Limit for this kind of source exceeded", nil, http.StatusForbidden)
+		return
 	}
 
 	//Check if user already has a source with this name
@@ -95,7 +88,9 @@ func ListSources(db *dbhelper.DBhelper, handlerData handlerData, w http.Response
 	}
 
 	var response models.ListSourcesResponse
+
 	if len(request.SourceID) == 0 {
+		//No sourceID provided
 		sources, err := models.GetSourcesForUser(db, handlerData.user.Pkid)
 		if err != nil {
 			sendServerError(w)
@@ -107,11 +102,13 @@ func ListSources(db *dbhelper.DBhelper, handlerData handlerData, w http.Response
 		}
 
 	} else {
+		//SourceID provided
 		source, err := models.GetSourceFromSourceID(db, request.SourceID)
 		if err != nil {
 			sendServerError(w)
 			return
 		}
+
 		if handlerData.user.Pkid != source.CreatorID {
 			source.CreatorID = 0
 			source.Secret = ""
@@ -159,7 +156,7 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	if err != nil {
 		if err.Error() == dbhelper.ErrNoRowsInResultSet {
 			//Source just not found if no rows in result set
-			sendResponse(w, models.ResponseError, models.NotFoundError, nil, 404)
+			sendResponse(w, models.ResponseError, models.NotFoundError, nil, http.StatusNotFound)
 			return
 		}
 		//Real db error
@@ -168,7 +165,7 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	}
 
 	if source.CreatorID != handlerData.user.Pkid {
-		sendError("user not allowed", w, models.ActionNotAllowed, 403)
+		sendError("user not allowed", w, models.ActionNotAllowed, http.StatusForbidden)
 		return
 	}
 

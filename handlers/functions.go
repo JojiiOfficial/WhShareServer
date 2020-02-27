@@ -53,7 +53,7 @@ func parseUserInput(config *models.ConfigStruct, w http.ResponseWriter, r *http.
 		return false
 	}
 
-	return !handleAndSendError(json.Unmarshal(body, p), w, models.WrongInputFormatError, 422)
+	return !handleAndSendError(json.Unmarshal(body, p), w, models.WrongInputFormatError, http.StatusUnprocessableEntity)
 }
 
 func handleAndSendError(err error, w http.ResponseWriter, message string, statusCode int) bool {
@@ -69,7 +69,7 @@ func sendError(erre string, w http.ResponseWriter, message string, statusCode in
 }
 
 func sendServerError(w http.ResponseWriter) {
-	sendError("internal server error", w, models.ServerError, 500)
+	sendError("internal server error", w, models.ServerError, http.StatusInternalServerError)
 }
 
 //LogError returns true on error
@@ -217,7 +217,7 @@ func hasEmptyValue(e reflect.Value) bool {
 func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...string) bool {
 	for _, content := range contents {
 		if uint(len(content)) > maxPayloadSize-1 {
-			sendResponse(w, models.ResponseError, "Content too long!", nil, 413)
+			sendResponse(w, models.ResponseError, "Content too long!", nil, http.StatusRequestEntityTooLarge)
 			return true
 		}
 	}
@@ -226,7 +226,7 @@ func checkPayloadSizes(w http.ResponseWriter, maxPayloadSize uint, contents ...s
 
 func checkInput(w http.ResponseWriter, request interface{}, contents ...string) bool {
 	if isStructInvalid(request) {
-		sendError("input missing", w, models.WrongInputFormatError, 422)
+		sendError("input missing", w, models.WrongInputFormatError, http.StatusUnprocessableEntity)
 		return true
 	}
 

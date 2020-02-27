@@ -14,6 +14,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type webhookResp struct {
+	StatusCode int
+	Message    string
+}
+
 //WebhookHandler handler for incoming webhooks
 //-> /post/webhook
 func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
@@ -29,18 +34,17 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 	source, err := models.GetSourceFromSourceID(db, sourceID)
 	if err != nil {
 		log.Warn("WebhookHandler - Source not found")
-		sendResponse(w, models.ResponseError, "404 Not found", nil, 404)
+		sendResponse(w, models.ResponseError, "404 Not found", nil, http.StatusNotFound)
 		return
 	}
 
 	if source.Secret == secret {
-		c := make(chan bool, 1)
+		c := make(chan webhookResp, 1)
 		log.Infof("New webhook: %s\n", source.Name)
-		msg := "error"
-		statusCode := http.StatusInternalServerError
 
 		go (func(req *http.Request) {
 			userChan := make(chan *models.User, 1)
+
 			//Get source user
 			go (func() {
 				us, err := models.GetUserByPK(db, source.CreatorID)
@@ -55,29 +59,33 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
 			if isHeaderBlocklistetd(req.Header, &handlerData.config.Server.WebhookBlacklist.HeaderValues) {
 				log.Warnf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
-
-				msg = "error"
-				c <- true
+				c <- webhookResp{StatusCode: http.StatusAccepted, Message: "Content won't forwarded"}
 				return
 			}
 
 			//Await getting user
 			user := <-userChan
 
-			//return on error or user not allowed to send hooks
-			if user == nil || user.Role.MaxTraffic == 0 || user.Role.MaxHookCalls == 0 {
-				msg = "not allowed to send hooks"
-				statusCode = http.StatusForbidden
-				c <- false
+			//Validate user
+			if user == nil {
+				c <- webhookResp{
+					StatusCode: http.StatusBadRequest,
+					Message:    "User not found",
+				}
 				return
 			}
 
-			//Read payload body from webhook
+			//return error if user not allowed to send hooks
+			if !user.CanShareWebhooks() {
+				c <- webhookResp{StatusCode: http.StatusMethodNotAllowed, Message: "not allowed to send webhooks"}
+				return
+			}
+
+			//Read payload from webhook
 			payload, err := ioutil.ReadAll(io.LimitReader(req.Body, handlerData.config.Webserver.MaxPayloadBodyLength))
 			if err != nil {
 				LogError(err)
-				msg = "error reading content"
-				c <- false
+				c <- webhookResp{StatusCode: http.StatusInternalServerError, Message: "error reading payload"}
 				return
 			}
 			req.Body.Close()
@@ -90,27 +98,26 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 			//Check if user limit exceeded
 			if (user.Role.MaxTraffic != -1 && uint32(user.Role.MaxTraffic*1024) <= (user.Traffic+reqTraffic)) ||
 				(user.Role.MaxHookCalls != -1 && user.Role.MaxHookCalls < int(user.HookCalls+1)) {
-				msg = "traffic/hookCall limit exceeded"
-				statusCode = http.StatusForbidden
-				c <- false
+				c <- webhookResp{StatusCode: http.StatusForbidden, Message: "traffic/hookCall limit exceeded"}
 				return
 			}
 
 			//Delete in config specified json objects
 			payload, err = gaw.JSONRemoveItems(payload, handlerData.config.Server.WebhookBlacklist.JSONObjects[constants.ModeToString[source.Mode]], false)
 			if err != nil {
-				LogError(err, log.Fields{
-					"msg": "Error filtering JSON!",
-				})
-				msg = "server error"
-				c <- true
+				LogError(err, log.Fields{"msg": "Error filtering JSON!"})
+				c <- webhookResp{StatusCode: http.StatusInternalServerError, Message: "server error"}
 				return
 			}
 
-			c <- true
+			//Send success
+			c <- webhookResp{
+				StatusCode: http.StatusOK,
+				Message:    "Success",
+			}
 
 			//Update traffic and hookCallCount if not both unlimited
-			if user.Role.MaxHookCalls != -1 || user.Role.MaxTraffic != -1 {
+			if !user.HasUnlimitedHookCalls() {
 				user.AddHookCall(db, reqTraffic)
 			}
 
@@ -124,11 +131,8 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 			handlerData.subscriberCallback.OnWebhookReceive(webhook, source)
 		})(r)
 
-		if <-c {
-			sendResponse(w, models.ResponseSuccess, "Success", nil)
-		} else {
-			sendResponse(w, models.ResponseError, msg, nil, statusCode)
-		}
+		res := <-c
+		http.Error(w, res.Message, res.StatusCode)
 
 	} else {
 		log.Warn("invalid secret for source", sourceID)

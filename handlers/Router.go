@@ -91,30 +91,9 @@ func RouteHandler(db *dbhelper.DBhelper, handlerType handlerType, handlerData *h
 			return
 		}
 
-		switch handlerType {
-		case sessionHandlerType:
-			{
-				//Get auth header
-				authHeader, has := r.Header["Authorization"]
-				//Validate bearer token
-				if !has || len(authHeader) == 0 || !strings.HasPrefix(authHeader[0], "Bearer") || len(tokenFromBearerHeader(authHeader[0])) != 64 {
-
-					sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusForbidden)
-					return
-				}
-
-				user, _ := models.GetUserBySession(db, tokenFromBearerHeader(authHeader[0]))
-				if user == nil {
-					sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusForbidden)
-					return
-				}
-
-				//Update IP
-				go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
-
-				//Set user
-				handlerData.user = user
-			}
+		//Validate handlerType
+		if !handlerType.validate(db, handlerData, r, w) {
+			return
 		}
 
 		//Process request
@@ -123,6 +102,36 @@ func RouteHandler(db *dbhelper.DBhelper, handlerType handlerType, handlerData *h
 		//Print duration of processing
 		printProcessingDuration(start)
 	})
+}
+
+//Returns false on error
+func (handlerType handlerType) validate(db *dbhelper.DBhelper, handlerData *handlerData, r *http.Request, w http.ResponseWriter) bool {
+	switch handlerType {
+	case sessionHandlerType:
+		{
+			//Get auth header
+			authHeader, has := r.Header["Authorization"]
+			//Validate bearer token
+			if !has || len(authHeader) == 0 || !strings.HasPrefix(authHeader[0], "Bearer") || len(tokenFromBearerHeader(authHeader[0])) != 64 {
+				sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusUnauthorized)
+				return false
+			}
+
+			user, _ := models.GetUserBySession(db, tokenFromBearerHeader(authHeader[0]))
+			if user == nil {
+				sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusUnauthorized)
+				return false
+			}
+
+			//Update IP
+			go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
+
+			//Set user
+			handlerData.user = user
+		}
+	}
+
+	return true
 }
 
 //Prints the duration of handling the function

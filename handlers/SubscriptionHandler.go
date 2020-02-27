@@ -52,12 +52,12 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 
 	//Check if token available. return error if not valid, but given.
 	if len(token) > 0 && len(token) != 64 {
-		sendError("token invalid", w, models.InvalidTokenError, 403)
+		sendError("token invalid", w, models.InvalidTokenError, http.StatusForbidden)
 		return
 	}
 
 	if len(request.SubscriptionID) != 32 {
-		sendResponse(w, models.ResponseError, "Invalid subscriptionID length!", nil, 411)
+		sendResponse(w, models.ResponseError, "Invalid subscriptionID length!", nil, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -116,7 +116,7 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 	}
 
 	if isStructInvalid(request) {
-		sendError("input missing", w, models.InvalidTokenError, 422)
+		sendError("input missing", w, models.InvalidTokenError, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -126,12 +126,12 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 
 	//Check if token available. return error if not valid, but given.
 	if len(token) > 0 && len(token) != 64 {
-		sendError("token invalid", w, models.InvalidTokenError, 403)
+		sendError("token invalid", w, models.InvalidTokenError, http.StatusForbidden)
 		return
 	}
 
 	if len(request.SourceID) != 32 {
-		sendResponse(w, models.ResponseError, models.WrongLength, nil, 411)
+		sendResponse(w, models.ResponseError, models.WrongLength, nil, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -147,16 +147,21 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 
 		}
 		go user.UpdateIP(db, gaw.GetIPFromHTTPrequest(r))
-		userSubscriptions, err := user.GetSubscriptionCount(db)
+
+		//Check if user can subscribe to sources
+		if !user.CanSubscribe() {
+			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, http.StatusForbidden)
+			return
+		}
+
+		//Check if user subscription limit is exceeded
+		isLimitReached, err := user.IsSubscriptionLimitReached(db)
 		if err != nil {
 			sendServerError(w)
 			return
 		}
 
-		if user.Role.MaxSubscriptions == 0 {
-			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, http.StatusForbidden)
-			return
-		} else if user.Role.MaxSubscriptions != -1 && userSubscriptions >= uint32(user.Role.MaxSubscriptions) {
+		if isLimitReached {
 			sendResponse(w, models.ResponseError, "Subscription limit exceeded", nil, http.StatusForbidden)
 			return
 		}
@@ -164,6 +169,7 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 		userID = user.Pkid
 	}
 
+	//Return if callback is invalid
 	if !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
 		return
 	}
@@ -171,32 +177,34 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 	//The source to get subbed
 	source, err := models.GetSourceFromSourceID(db, request.SourceID)
 	if err != nil {
-		sendError("input missing", w, models.NotFoundError, 422)
+		sendError("input missing", w, models.NotFoundError, http.StatusNotFound)
 		return
 	}
 
 	var isSubscribed bool
 	if userID > 1 {
-		is, err := user.IsSubscribedTo(db, source.PkID)
+		//Check if user already has subscripted to this source
+		isSubscribed, err = user.IsSubscribedTo(db, source.PkID)
 		if err != nil {
 			sendServerError(w)
 			return
 		}
-		isSubscribed = is
 	} else {
-		ex, err := models.SubscriptionExists(db, source.PkID, request.CallbackURL)
+		//Check if subscription exists by comparing callback url and source
+		isSubscribed, err = models.SubscriptionExists(db, source.PkID, request.CallbackURL)
 		if err != nil {
 			sendServerError(w)
 			return
 		}
-		isSubscribed = ex
 	}
 
+	//Return if already subscribed
 	if isSubscribed {
 		sendResponse(w, models.ResponseError, "You can subscribe to a source only once", nil)
 		return
 	}
 
+	//Check if user is allowed to subscribe to the given source
 	if source.IsPrivate && source.CreatorID == userID || !source.IsPrivate {
 		subs := models.Subscription{
 			Source:      source.PkID,
@@ -222,7 +230,7 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 	}
 }
 
-//Get lits of disallowed IPs
+//Get list of disallowed IPs
 func genIPBlocklist(ownIP *string, config *models.ConfigStruct) []string {
 	var list []string
 
@@ -244,7 +252,7 @@ func validateCallbackURL(config *models.ConfigStruct, w http.ResponseWriter, cal
 	}
 
 	if !isCallbackValid {
-		sendError("ip reserved", w, "CallbackURL points to reserved IP, is Servers IP or can't lookup host", 422)
+		sendError("ip reserved", w, "CallbackURL points to reserved IP, is Servers IP or can't lookup host", http.StatusForbidden)
 		return false
 	}
 

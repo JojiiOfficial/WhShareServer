@@ -19,7 +19,7 @@ func Login(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter
 		return
 	}
 	if isStructInvalid(request) || len(request.Password) != 128 {
-		sendError("input missing", w, models.WrongInputFormatError, 422)
+		sendError("input missing", w, models.WrongInputFormatError, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -43,7 +43,7 @@ func Login(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter
 			Token: token,
 		})
 	} else {
-		sendResponse(w, models.ResponseError, "Error logging in", nil, 403)
+		sendResponse(w, models.ResponseError, "Error logging in", nil, http.StatusUnauthorized)
 	}
 }
 
@@ -51,7 +51,7 @@ func Login(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter
 //-> /user/create
 func Register(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWriter, r *http.Request) {
 	if !handlerData.config.Server.AllowRegistration {
-		sendResponse(w, models.ResponseError, "Server doesn't accept registrations", nil, 403)
+		sendResponse(w, models.ResponseError, "Server doesn't accept registrations", nil, http.StatusForbidden)
 		return
 	}
 
@@ -62,7 +62,7 @@ func Register(db *dbhelper.DBhelper, handlerData handlerData, w http.ResponseWri
 	}
 
 	if isStructInvalid(request) || len(request.Password) != 128 || len(request.Username) > 30 {
-		sendError("input missing", w, models.WrongInputFormatError, 422)
+		sendError("input missing", w, models.WrongInputFormatError, http.StatusUnprocessableEntity)
 		return
 	}
 
