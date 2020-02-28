@@ -28,7 +28,7 @@ type Route struct {
 	HandlerType requestType
 }
 
-//HTTPMethod http method. GET,kPOST, DELETE, HEADER, etc...
+//HTTPMethod http method. GET, POST, DELETE, HEADER, etc...
 type HTTPMethod string
 
 //HTTP methods
@@ -175,6 +175,12 @@ func (requestType requestType) validate(db *dbhelper.DBhelper, handlerData *hand
 			//validate user
 			if err != nil {
 				sendResponse(w, models.ResponseError, models.InvalidTokenError, nil, http.StatusUnauthorized)
+				return false
+			}
+
+			//Return error if user is invalid
+			if !user.IsValid {
+				sendResponse(w, models.ResponseError, models.UserIsInvalidErr, nil, http.StatusUnauthorized)
 				return false
 			}
 

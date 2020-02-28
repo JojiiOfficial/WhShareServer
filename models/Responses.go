@@ -36,9 +36,9 @@ const (
 )
 
 const (
-	//HeaderStatus headername for status in response
+	//HeaderStatus headerName for status in response
 	HeaderStatus string = "rstatus"
-	//HeaderStatusMessage headername for status in response
+	//HeaderStatusMessage headerName for status in response
 	HeaderStatusMessage string = "rmess"
 )
 

@@ -112,7 +112,10 @@ type subCB struct {
 }
 
 func (subCB subCB) OnSuccess(subscription models.Subscription) {
-	subCB.retryService.Remove(subscription.PkID)
+	if retry, has := subCB.retryService.RetryList[subscription.PkID]; has {
+		subCB.retryService.Remove(db, subscription.PkID, retry)
+	}
+
 	log.Debug("Removing subscription from retryQueue. Reason: successful notification")
 	if !subscription.IsValid {
 		subscription.TriggerAndValidate(db)
@@ -122,7 +125,7 @@ func (subCB subCB) OnSuccess(subscription models.Subscription) {
 }
 
 func (subCB subCB) OnError(subscription models.Subscription, source models.Source, webhook models.Webhook) {
-	subCB.retryService.Add(subscription.PkID, source.PkID, webhook.PkID)
+	subCB.retryService.Add(db, subscription.PkID, source.PkID, webhook.PkID)
 }
 
 func (subCB subCB) OnUnsubscribe(subscription models.Subscription) {

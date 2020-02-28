@@ -81,27 +81,6 @@ func main() {
 		DisableColors:    *appNoColor,
 	})
 
-	if parsed != configCmdCreate.FullCommand() {
-		var shouldExit bool
-		config, shouldExit = models.InitConfig(*appCfgFile, false)
-		if shouldExit {
-			return
-		}
-
-		if !config.Check() {
-			log.Info("Exiting")
-			return
-		}
-
-		var err error
-		db, err = storage.ConnectDB(config, isDebug, *appNoColor)
-		if err != nil {
-			log.Fatalln(err.Error())
-			return
-		}
-
-	}
-
 	log.Infof("LogLevel: %s\n", *appLogLevel)
 
 	//set app logLevel
@@ -123,6 +102,27 @@ func main() {
 		fmt.Println("LogLevel not found!")
 		os.Exit(1)
 		return
+	}
+
+	if parsed != configCmdCreate.FullCommand() {
+		var shouldExit bool
+		config, shouldExit = models.InitConfig(*appCfgFile, false)
+		if shouldExit {
+			return
+		}
+
+		if !config.Check() {
+			log.Info("Exiting")
+			return
+		}
+
+		var err error
+		db, err = storage.ConnectDB(config, isDebug, *appNoColor)
+		if err != nil {
+			log.Fatalln(err.Error())
+			return
+		}
+
 	}
 
 	switch parsed {
