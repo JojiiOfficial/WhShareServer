@@ -6,7 +6,7 @@ ENV GO111MODULE=on
 WORKDIR /app/whshare
 
 # install required package(s)
-RUN apk add --no-cache git
+RUN apk --no-cache add ca-certificates git
 
 # Copy dependency list
 COPY go.mod .

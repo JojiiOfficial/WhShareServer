@@ -47,7 +47,7 @@ func (retry *Retry) insert(db *dbhelper.DBhelper) error {
 
 //UpdateNext updates a retry
 func (retry *Retry) UpdateNext(db *dbhelper.DBhelper) error {
-	_, err := db.Execf("UPDATE %s SET tryNr=?, nextRetry=(FROM_UNIXTIME(?)) WHERE pk_id=?", []string{TableRetries}, retry.TryNr, retry.NextRetry, retry.PKid)
+	_, err := db.Execf("UPDATE %s SET tryNr=?, nextRetry=(FROM_UNIXTIME(?)) WHERE pk_id=?", []string{TableRetries}, retry.TryNr, retry.NextRetry.Unix(), retry.PKid)
 	return err
 }
 
