@@ -12,11 +12,8 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gorilla/mux v1.7.4
 	github.com/jmoiron/sqlx v1.2.0 // indirect
-	github.com/jojiiOfficial/GoDBHelper v1.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/sirupsen/logrus v1.4.2
-	github.com/thecodeteam/goodbye v0.0.0-20170927022442-a83968bda2d3
 	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
-	golang.org/x/tools v0.0.0-20200226224502-204d844ad48d // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )

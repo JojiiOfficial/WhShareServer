@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -10,7 +12,6 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/JojiiOfficial/WhShareServer/models"
 	"github.com/JojiiOfficial/WhShareServer/services"
-	"github.com/thecodeteam/goodbye"
 )
 
 //Services
@@ -28,11 +29,6 @@ func startAPI() {
 	if config.Server.BogonAsCallback {
 		log.Info("Allowing bogon as callbackURL!")
 	}
-
-	//initializing exit callback
-	ctx := initExitCallback(db)
-	defer goodbye.Exit(ctx, -1)
-
 	//Setting up database
 	db.SetErrHook(func(err error, query, prefix string) {
 		logMessage := prefix + query + ": " + err.Error()
@@ -52,6 +48,7 @@ func startAPI() {
 	retryService = services.NewRetryService(db, config)
 	retryService.Callback = subCB{retryService: retryService}
 	retryService.Start()
+	//TODO load retries from DB
 
 	//Create cleanupService
 	cleanService = services.NewCleanupService(db)
@@ -83,27 +80,50 @@ func startAPI() {
 	log.Info("Startup completed")
 
 	//Start loop to tick the services
-	for {
-		time.Sleep(time.Hour)
+	go (func() {
+		for {
+			time.Sleep(time.Hour)
 
-		usageResetService.Tick()
-		cleanService.Tick()
-		ipRefreshService.Tick()
-	}
+			usageResetService.Tick()
+			cleanService.Tick()
+			ipRefreshService.Tick()
+		}
+	})()
+
+	awaitExit(db, apiService)
 }
 
-//Close db connection on exit
-func initExitCallback(db *dbhelper.DBhelper) context.Context {
-	ctx := context.Background()
-	goodbye.Notify(ctx)
-	goodbye.Register(func(ctx context.Context, sig os.Signal) {
-		if db.DB != nil {
-			if !LogError(db.DB.Close()) {
-				log.Info("DB closed")
-			}
-		}
-	})
-	return ctx
+//Shutdown server gracefully
+func awaitExit(db *dbhelper.DBhelper, httpServer *services.APIService) {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM)
+
+	// await os signal
+	<-signalChan
+
+	// Create a deadline for the await
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
+	log.Info("Shutting down server")
+
+	if httpServer.HTTPServer != nil {
+		httpServer.HTTPServer.Shutdown(ctx)
+		log.Info("HTTP server shutdown complete")
+	}
+
+	if httpServer.HTTPTLSServer != nil {
+		httpServer.HTTPTLSServer.Shutdown(ctx)
+		log.Info("HTTPs server shutdown complete")
+	}
+
+	if db != nil && db.DB != nil {
+		db.DB.Close()
+		log.Info("Database shutdown complete")
+	}
+
+	log.Info("Shutting down complete")
+	os.Exit(0)
 }
 
 //Callbacks for webhooks
