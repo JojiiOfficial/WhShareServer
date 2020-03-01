@@ -6,7 +6,7 @@ metadata:
     app: whshare
   name: whshare
 spec:
-  replicas: 4
+  replicas: 5
   selector:
     matchLabels:
       app: whshare
@@ -26,6 +26,8 @@ spec:
         env:
         - name: S_CONFIG
           value: /app/data/config
+        - name: S_LOG_LEVEL
+          value: debug
       volumes:
       - name: config
         configMap:
@@ -49,6 +51,6 @@ spec:
     app: whshare
   type: NodePort
   externalIPs:
-  - <external node IP>
+  - <IP>
 status:
   loadBalancer: {}
