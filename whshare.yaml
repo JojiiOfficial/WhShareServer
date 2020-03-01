@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: whshare
+  name: whshare
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: whshare
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: whshare
+    spec:
+      containers:
+      - image: jojii/wh-share:v1.1
+        name: wh-share
+        volumeMounts:
+        - name: config
+          mountPath: /app/data/
+        env:
+        - name: S_CONFIG
+          value: /app/data/config
+      volumes:
+      - name: config
+        configMap:
+          name: whshareconfig
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: whshare
+  name: whshare
+spec:
+  ports:
+  - name: 9999-80
+    port: 9999
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: whshare
+  type: NodePort
+  externalIPs:
+  - <external node IP>
+status:
+  loadBalancer: {}
