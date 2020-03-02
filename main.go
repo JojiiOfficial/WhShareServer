@@ -10,6 +10,7 @@ import (
 	dbhelper "github.com/JojiiOfficial/GoDBHelper"
 	"github.com/JojiiOfficial/WhShareServer/constants"
 	"github.com/JojiiOfficial/WhShareServer/models"
+	"github.com/JojiiOfficial/WhShareServer/services"
 	"github.com/JojiiOfficial/WhShareServer/storage"
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -19,11 +20,13 @@ import (
 const version = "0.23.7a"
 
 var (
-	app         = kingpin.New("server", "A Rest server")
-	appLogLevel = app.Flag("log-level", "Enable debug mode").HintOptions(constants.LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').Default(constants.LogLevels[2]).String()
-	appNoColor  = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
-	appYes      = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
-	appCfgFile  = app.
+	app          = kingpin.New("server", "A Rest server")
+	appLogLevel  = app.Flag("log-level", "Enable debug mode").HintOptions(constants.LogLevels...).Envar(getEnVar(EnVarLogLevel)).Short('l').Default(constants.LogLevels[2]).String()
+	appNoColor   = app.Flag("no-color", "Disable colors").Envar(getEnVar(EnVarNoColor)).Bool()
+	appClean     = app.Flag("cleanup", "Cleanup database items").Envar(getEnVar(EnVarClean)).Bool()
+	appAutoClean = app.Flag("autoclean", "Automatically cleanup database items").Envar(getEnVar(EnVarAutoClean)).Bool()
+	appYes       = app.Flag("yes", "Skips confirmations").Short('y').Envar(getEnVar(EnVarYes)).Bool()
+	appCfgFile   = app.
 			Flag("config", "the configuration file for the subscriber").
 			Envar(getEnVar(EnVarConfigFile)).
 			Short('c').String()
@@ -57,6 +60,8 @@ const (
 	EnVarNoColor    = "NO_COLOR"
 	EnVarYes        = "SKIP_CONFIRM"
 	EnVarConfigFile = "CONFIG"
+	EnVarClean      = "CLEAN"
+	EnVarAutoClean  = "AUTOCLEAN"
 )
 
 //Return the variable using the server prefix
@@ -125,6 +130,12 @@ func main() {
 
 	}
 
+	//Clean only if
+	if *appClean {
+		cleanUp(db, config)
+		return
+	}
+
 	switch parsed {
 	//Server --------------------
 	case serverCmdStart.FullCommand():
@@ -154,5 +165,21 @@ func main() {
 			//whsub config create
 			models.InitConfig(*configCmdCreateName, true)
 		}
+	}
+}
+
+func cleanUp(db *dbhelper.DBhelper, config *models.ConfigStruct) {
+	log.Info("Cleaning up")
+
+	//Create new cleanup service
+	cleanupService := services.NewCleanupService(db, config)
+
+	//Call cleaner
+	err := <-cleanupService.Tick()
+
+	if err != nil {
+		log.Fatalln(err)
+	} else {
+		log.Info("Cleaning up successfully")
 	}
 }

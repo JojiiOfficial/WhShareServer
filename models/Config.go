@@ -44,6 +44,7 @@ type configServer struct {
 	ServerHostAsCallback bool `default:"false"`
 	BlocklistIPs         []string
 	WorkerCount          int `default:"8"`
+	CleanSessionsAfter   time.Duration
 	Retries              configRetries
 }
 
@@ -99,6 +100,7 @@ func InitConfig(confFile string, createMode bool) (*ConfigStruct, bool) {
 				AllowRegistration:    false,
 				BogonAsCallback:      false,
 				ServerHostAsCallback: false,
+				CleanSessionsAfter:   386 * time.Hour,
 				Retries: configRetries{
 					RetryTimes: map[uint8]time.Duration{
 						0: 1 * time.Minute,

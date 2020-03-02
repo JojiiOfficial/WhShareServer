@@ -50,11 +50,13 @@ func startAPI() {
 	retryService.Start()
 	//TODO load retries from DB
 
-	//Create cleanupService
-	cleanService = services.NewCleanupService(db)
-	//If cleaning fails, exit
-	if err := <-cleanService.Tick(); err != nil {
-		log.Fatal(err)
+	if *appAutoClean {
+		//Create cleanupService
+		cleanService = services.NewCleanupService(db, config)
+		//If cleaning fails, exit
+		if err := <-cleanService.Tick(); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	//Create usageResetService and reset the users
@@ -85,8 +87,11 @@ func startAPI() {
 			time.Sleep(time.Hour)
 
 			usageResetService.Tick()
-			cleanService.Tick()
 			ipRefreshService.Tick()
+
+			if cleanService != nil {
+				cleanService.Tick()
+			}
 		}
 	})()
 

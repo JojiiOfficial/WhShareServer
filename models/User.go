@@ -81,6 +81,8 @@ func GetUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	(LoginSession{Token: token}).UpdateLastAccessedByToken(db.WithHook(db.ErrHookFunc))
 	return &user, nil
 }
 
