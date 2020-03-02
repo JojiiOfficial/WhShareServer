@@ -212,6 +212,7 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 	}
 
 	if err != nil {
+		LogError(err)
 		sendServerError(w)
 	} else {
 		sendResponse(w, models.ResponseSuccess, message, nil)
