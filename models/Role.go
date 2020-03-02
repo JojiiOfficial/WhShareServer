@@ -13,6 +13,7 @@ type Role struct {
 	MaxSubscriptions int    `db:"maxSubscriptions"`
 	MaxHookCalls     int    `db:"maxHookCalls"`
 	MaxTraffic       int    `db:"maxTraffic"`
+	IsAdmin          bool   `db:"isAdmin"`
 }
 
 //TableRoles the db tableName for the roles

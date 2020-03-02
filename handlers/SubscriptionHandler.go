@@ -22,7 +22,11 @@ func Unsubscribe(db *dbhelper.DBhelper, handlerData handlerData, w http.Response
 
 	subscription, err := models.GetSubscriptionBySubsID(db, request.SubscriptionID)
 	if err != nil {
-		//TODO send subscription not found
+		if err.Error() == dbhelper.ErrNoRowsInResultSet {
+			sendResponse(w, models.ResponseSuccess, "", nil)
+			return
+		}
+
 		sendServerError(w)
 		return
 	}
@@ -53,7 +57,8 @@ func UpdateCallbackURL(db *dbhelper.DBhelper, handler handlerData, w http.Respon
 		return
 	}
 
-	if !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
+	// Ignore if user is admin, otherwise validate callback url
+	if !handler.user.IsAdmin() && !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
 		return
 	}
 
@@ -93,8 +98,8 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 		return
 	}
 
-	//If client is logged in
-	if handler.user != nil {
+	//If client is logged in and no admin
+	if handler.user != nil && !handler.user.IsAdmin() {
 		//Check if user can subscribe to sources
 		if !handler.user.CanSubscribe() {
 			sendResponse(w, models.ResponseError, "You are not allowed to have subscriptions", nil, http.StatusForbidden)
@@ -114,8 +119,8 @@ func Subscribe(db *dbhelper.DBhelper, handler handlerData, w http.ResponseWriter
 		}
 	}
 
-	//Return if callback is invalid
-	if !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
+	// Ignore if user is admin, otherwise validate callback url
+	if !handler.user.IsAdmin() && !validateCallbackURL(handler.config, w, request.CallbackURL, genIPBlocklist(handler.ownIP, handler.config)) {
 		return
 	}
 

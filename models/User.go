@@ -76,7 +76,7 @@ func (user *User) GetSubscriptionCount(db *dbhelper.DBhelper) (uint32, error) {
 //GetUserBySession get user by sessionToken
 func GetUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 	var user User
-	err := db.WithHook(dbhelper.NoHook).QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, traffic, hookCalls, role.pk_id "role.pk_id", role.name "role.name", role.maxPrivSources "role.maxPrivSources",role.maxPubSources "role.maxPubSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1 LIMIT 1`,
+	err := db.WithHook(dbhelper.NoHook).QueryRowf(&user, `SELECT %s.pk_id, username, createdAt, isValid, traffic, hookCalls, role.pk_id "role.pk_id", role.name "role.name", role.maxPrivSources "role.maxPrivSources",role.maxPubSources "role.maxPubSources", role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic", role.isAdmin "role.isAdmin" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=(SELECT userID FROM %s WHERE sessionToken=? AND isValid=1) and %s.isValid=1 LIMIT 1`,
 		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableLoginSession, TableUser}, token)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func GetUserBySession(db *dbhelper.DBhelper, token string) (*User, error) {
 //GetUserByPK get user by pk_id
 func GetUserByPK(db *dbhelper.DBhelper, pkID uint32) (*User, error) {
 	var user User
-	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, traffic, hookCalls, createdAt, isValid, role.pk_id "role.pk_id", role.name "role.name", role.maxPrivSources "role.maxPrivSources", role.maxPubSources "role.maxPubSources",role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=? and %s.isValid=1 LIMIT 1`,
+	err := db.QueryRowf(&user, `SELECT %s.pk_id, username, traffic, hookCalls, createdAt, isValid, role.pk_id "role.pk_id", role.name "role.name", role.maxPrivSources "role.maxPrivSources", role.maxPubSources "role.maxPubSources",role.maxSubscriptions "role.maxSubscriptions", role.maxHookCalls "role.maxHookCalls", role.maxTraffic "role.maxTraffic", role.isAdmin "role.isAdmin" FROM %s JOIN %s AS role ON (role.pk_id = %s.role) WHERE %s.pk_id=? and %s.isValid=1 LIMIT 1`,
 		[]string{TableUser, TableUser, TableRoles, TableUser, TableUser, TableUser}, pkID)
 	if err != nil {
 		return nil, err
@@ -114,6 +114,11 @@ func InsertUser(db *dbhelper.DBhelper, username, password, ip string) error {
 		IgnoreFields: []string{"role", "traffic", "hookCalls", "resetIndex"},
 	})
 	return err
+}
+
+//IsAdmin return true if user is an admin
+func (user User) IsAdmin() bool {
+	return user.Role.IsAdmin
 }
 
 //LoginQuery loginQuery

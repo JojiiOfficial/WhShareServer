@@ -161,6 +161,7 @@ func UpdateSource(db *dbhelper.DBhelper, handlerData handlerData, w http.Respons
 		}
 		//Real db error
 		sendServerError(w)
+		LogError(err)
 		return
 	}
 

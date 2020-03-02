@@ -15,5 +15,6 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
+	google.golang.org/appengine v1.6.5
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )

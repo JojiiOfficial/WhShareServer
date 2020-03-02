@@ -144,7 +144,6 @@ func main() {
 
 			fmt.Println("Get all users having a session:")
 			for _, session := range sessions {
-				start := time.Now()
 				models.GetUserBySession(db, session)
 				fmt.Println(time.Now().Sub(start).String())
 			}
