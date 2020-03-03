@@ -60,7 +60,7 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 			//Don't forward the webhook if it contains a header-value pair which is on the blacklist
 			if isHeaderBlocklistetd(req.Header, &handlerData.config.Server.WebhookBlacklist.HeaderValues) {
 				log.Warnf("Blocked webhook '%s' because of header-blacklist\n", source.SourceID)
-				c <- webhookResp{StatusCode: http.StatusAccepted, Message: "Content won't forwarded"}
+				c <- webhookResp{StatusCode: http.StatusOK, Message: "Content won't forwarded"}
 				return
 			}
 
