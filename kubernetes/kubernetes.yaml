@@ -18,7 +18,7 @@ spec:
         app: whshare
     spec:
       containers:
-      - image: jojii/wh-share:v1.1
+      - image: jojii/wh-share:v1.4.2
         name: wh-share
         volumeMounts:
         - name: config

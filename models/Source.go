@@ -78,8 +78,14 @@ func (source *Source) Update(db *dbhelper.DBhelper, field, newText string, arg .
 
 //Delete source
 func (source *Source) Delete(db *dbhelper.DBhelper) error {
+	//Delete all retries
+	_, err := db.Execf("DELETE FROM %s WHERE sourcePK=?", []string{TableRetries}, source.PkID)
+	if err != nil {
+		return err
+	}
+
 	//Delete all webhooks assigned to this source
-	_, err := db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, source.PkID)
+	_, err = db.Execf("DELETE FROM %s WHERE sourceID=?", []string{TableWebhooks}, source.PkID)
 	if err != nil {
 		return err
 	}
