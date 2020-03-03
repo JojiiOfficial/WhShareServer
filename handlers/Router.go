@@ -120,6 +120,9 @@ var (
 		//Webhooks
 		Route{"Post webhook", "POST", "/webhook/post/{sourceID}/{secret}", WebhookHandler, defaultRequest},
 		Route{"GET webhook", "GET", "/webhook/get/{sourceID}/{secret}", WebhookHandler, defaultRequest},
+		//With params
+		Route{"POST webhook params", "POST", "/webhook/get/{sourceID}/{secret}/{params}", WebhookHandler, defaultRequest},
+		Route{"GET webhook params", "GET", "/webhook/get/{sourceID}/{secret}/{params}", WebhookHandler, defaultRequest},
 	}
 )
 

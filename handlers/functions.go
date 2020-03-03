@@ -277,3 +277,34 @@ func getHeaderSize(headers http.Header) uint32 {
 	}
 	return size
 }
+
+//Appends keys value pairs separated by = to the given json
+func appendJSONKeys(jsonContent []byte, kvpairs ...string) ([]byte, error) {
+	var parsedJSON interface{}
+	err := json.Unmarshal([]byte(jsonContent), &parsedJSON)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	//typecast to map[string]interface{}
+	mp := (parsedJSON.(map[string]interface{}))
+
+	//Loop key value pairs and append them
+	for _, kvpair := range kvpairs {
+		if !strings.Contains(kvpair, "=") {
+			continue
+		}
+
+		//get key
+		splitted := strings.Split(kvpair, "=")
+		key := splitted[0]
+
+		//Append value
+		value := strings.Join(splitted[1:], "=")
+		mp[key] = value
+	}
+
+	//Parse the object back to json
+	m, err := json.Marshal(parsedJSON)
+	return m, err
+}

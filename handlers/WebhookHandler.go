@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -119,6 +120,11 @@ func WebhookHandler(db *dbhelper.DBhelper, handlerData handlerData, w http.Respo
 			//Update traffic and hookCallCount if not both unlimited
 			if !user.HasUnlimitedHookCalls() {
 				user.AddHookCall(db, reqTraffic)
+			}
+
+			//append params
+			if p, has := vars["params"]; has {
+				payload, err = appendJSONKeys(payload, strings.Split(p, "&")...)
 			}
 
 			webhook := &models.Webhook{
